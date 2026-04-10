@@ -111,7 +111,7 @@ app.post('/api/todos', requireAuth, (req, res) => {
     text: p.text.trim(),
     startTime: p.startTime || '',
     endTime: p.endTime || '',
-    assignedTo: normalizeMemberName(p.assignedTo),
+    assignedTo: normalizeMemberName(p.assignedTo) || [],
     completed: false
   }));
 
@@ -140,7 +140,7 @@ app.put('/api/todos/:id', requireAuth, (req, res) => {
           text: p.text.trim(),
           startTime: p.startTime || '',
           endTime: p.endTime || '',
-          assignedTo: p.assignedTo || '',
+          assignedTo: normalizeMemberName(p.assignedTo) || [],
           completed: existingPoint ? existingPoint.completed : false
         };
       });

@@ -14,6 +14,9 @@ const TEAM_MEMBER_LOOKUP = new Map(
 );
 
 function normalizeMemberName(value) {
+  if (Array.isArray(value)) {
+    return value.map(v => normalizeMemberName(v)).filter(Boolean);
+  }
   if (typeof value !== 'string') {
     return null;
   }
