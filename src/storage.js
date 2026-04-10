@@ -1,9 +1,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'items.json');
 const FOLDERS_FILE = path.join(DATA_DIR, 'folders.json');
+const TODOS_FILE = path.join(DATA_DIR, 'todos.json');
 
 function ensureStorage() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -17,6 +19,56 @@ function ensureStorage() {
   if (!fs.existsSync(FOLDERS_FILE)) {
     fs.writeFileSync(FOLDERS_FILE, '[]', 'utf-8');
   }
+
+  if (!fs.existsSync(TODOS_FILE)) {
+    fs.writeFileSync(TODOS_FILE, '[]', 'utf-8');
+  }
+}
+
+function readTodos() {
+  ensureStorage();
+  const raw = fs.readFileSync(TODOS_FILE, 'utf-8');
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeTodos(todos) {
+  ensureStorage();
+  fs.writeFileSync(TODOS_FILE, JSON.stringify(todos, null, 2), 'utf-8');
+}
+
+function getTodos() {
+  return readTodos();
+}
+
+function addTodo(todo) {
+  const todos = readTodos();
+  todos.unshift(todo);
+  writeTodos(todos);
+  return todo;
+}
+
+function updateTodo(id, updater) {
+  const todos = readTodos();
+  const index = todos.findIndex(t => t.id === id);
+  if (index === -1) return null;
+  const nextItem = updater(todos[index]);
+  todos[index] = nextItem;
+  writeTodos(todos);
+  return nextItem;
+}
+
+function deleteTodo(id) {
+  const todos = readTodos();
+  const index = todos.findIndex(t => t.id === id);
+  if (index === -1) return null;
+  const [removed] = todos.splice(index, 1);
+  writeTodos(todos);
+  return removed;
 }
 
 function readFolders() {
@@ -153,5 +205,9 @@ module.exports = {
   getFolders,
   getItemById,
   getItems,
+  getTodos,
+  addTodo,
+  updateTodo,
+  deleteTodo,
   updateItem
 };

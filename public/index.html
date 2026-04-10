@@ -35,6 +35,7 @@
     </header>
 
     <main class="layout">
+      <div class="sidebar">
       <section class="panel">
         <h2 id="form-heading" style="display: flex; align-items: center; gap: 8px;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color)">
@@ -103,6 +104,49 @@
           </div>
           <p id="form-message" class="message"></p>
         </form>
+      </section>
+
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+      <section class="panel todo-panel">
+        <h2 style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--success)">
+              <polyline points="9 11 12 14 22 4"></polyline>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            Team Objectives
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" id="toggle-dates-btn" class="row-btn" style="background: transparent; border: 1px solid var(--border-subtle); cursor:pointer; font-size: 0.8em; padding: 6px 12px; color: var(--text-secondary);">Toggle All Dates</button>
+            <button type="button" id="toggle-todo-form-btn" class="row-btn" style="background: transparent; border: 1px solid var(--border-subtle); cursor:pointer;">+ New Objective</button>
+          </div>
+        </h2>
+        
+        <form id="todo-form" class="form hidden" style="margin-bottom: 20px; padding: 16px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-subtle);">
+          <input type="date" id="todo-date" required style="width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); font-family: inherit; color-scheme: dark;" />
+          <input type="text" id="todo-task" placeholder="Main objective title (e.g. Build Backend)" required />
+          
+          <div id="todo-points-container" style="display: flex; flex-direction: column; gap: 8px; margin: 8px 0;">
+            <div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required />
+              <input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" />
+              <span style="color: var(--text-secondary); font-size: 0.85em;">to</span>
+              <input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" />
+              <select class="todo-point-assign" style="width: 140px;" required>
+                <option value="">Assign To...</option>
+              </select>
+            </div>
+          </div>
+          <button type="button" id="add-todo-point-btn" class="row-btn" style="width: 100%; border: 1px dashed var(--border-subtle); background: transparent; color: var(--text-secondary); cursor:pointer; padding: 8px;">+ Add another point</button>
+
+          <div style="display: flex; gap: 8px; margin-top: 16px;">
+            <button type="submit" id="todo-submit-btn" style="flex: 1;">Save Objective</button>
+            <button type="button" id="cancel-todo-btn" class="row-btn" style="flex: 0; padding: 12px 18px; border: 1px solid var(--border-subtle); background: var(--bg-base); color: var(--text-primary); border-radius: 10px; cursor:pointer;">Cancel</button>
+          </div>
+        </form>
+        <div id="todo-list" style="display: grid; gap: 12px; margin-top: 10px;"></div>
       </section>
 
       <section class="panel resources">

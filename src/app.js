@@ -15,6 +15,10 @@ const {
   getFolders,
   getItemById,
   getItems,
+  getTodos,
+  addTodo,
+  updateTodo,
+  deleteTodo,
   updateItem
 } = require('./storage');
 const { TEAM_MEMBERS, normalizeMemberName } = require('./teamMembers');
@@ -88,6 +92,63 @@ app.post('/api/folders', requireAuth, (req, res) => {
 
 app.get('/api/team-members', requireAuth, (_req, res) => {
   res.status(200).json({ success: true, members: TEAM_MEMBERS });
+});
+
+// TODOS API
+app.get('/api/todos', requireAuth, (_req, res) => {
+  res.status(200).json({ success: true, todos: getTodos() });
+});
+
+app.post('/api/todos', requireAuth, (req, res) => {
+  const task = (req.body.task || '').trim();
+  const date = (req.body.date || '').trim();
+  const points = Array.isArray(req.body.points) ? req.body.points : [];
+
+  if (!task) return res.status(400).json({ success: false, message: 'Task is required' });
+
+  const formattedPoints = points.filter(p => typeof p.text === 'string' && p.text.trim()).map(p => ({
+    id: crypto.randomUUID(),
+    text: p.text.trim(),
+    startTime: p.startTime || '',
+    endTime: p.endTime || '',
+    assignedTo: normalizeMemberName(p.assignedTo),
+    completed: false
+  }));
+
+  const newItem = addTodo({
+    id: crypto.randomUUID(),
+    task,
+    date,
+    points: formattedPoints,
+    completed: false,
+    createdAt: new Date().toISOString()
+  });
+
+  res.status(201).json({ success: true, todo: newItem });
+});
+
+app.put('/api/todos/:id', requireAuth, (req, res) => {
+  const { pointId } = req.body;
+  const updated = updateTodo(req.params.id, (t) => {
+    // If pointId is provided, we toggle specific point
+    if (pointId && Array.isArray(t.points)) {
+      const newPoints = t.points.map(p => p.id === pointId ? { ...p, completed: !p.completed } : p);
+      const allCompleted = newPoints.length > 0 && newPoints.every(p => p.completed);
+      return { ...t, points: newPoints, completed: allCompleted };
+    }
+    // Toggle entire task
+    const globalComplete = !t.completed;
+    const syncedPoints = (t.points || []).map(p => ({...p, completed: globalComplete}));
+    return { ...t, completed: globalComplete, points: syncedPoints };
+  });
+  if (!updated) return res.status(404).json({ success: false, message: 'Todo not found' });
+  res.status(200).json({ success: true, todo: updated });
+});
+
+app.delete('/api/todos/:id', requireAuth, (req, res) => {
+  const removed = deleteTodo(req.params.id);
+  if (!removed) return res.status(404).json({ success: false, message: 'Todo not found' });
+  res.status(200).json({ success: true });
 });
 
 app.post('/api/items', requireAuth, upload.single('file'), async (req, res) => {

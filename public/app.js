@@ -20,6 +20,9 @@ const submitBtn = document.getElementById('submit-btn');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
 const addFolderBtn = document.getElementById('add-folder-btn');
 
+const todoForm = document.getElementById('todo-form');
+const todoList = document.getElementById('todo-list');
+
 // Login Elements
 const loginOverlay = document.getElementById('login-overlay');
 const loginForm = document.getElementById('login-form');
@@ -138,15 +141,32 @@ async function requestJson(url, options = {}) {
   return { response, payload };
 }
 
-function syncTeamMemberOptions(members) {
+function syncTeamMemberOptions(members = teamMembers) {
   const currentValue = addedBySelect.value;
   addedBySelect.innerHTML = '<option value="">Select team member</option>';
+  
+  // Also update all existing point assigns
+  const allAssigns = document.querySelectorAll('.todo-point-assign');
 
   members.forEach((member) => {
     const option = document.createElement('option');
     option.value = member;
     option.textContent = member;
     addedBySelect.appendChild(option);
+  });
+
+  allAssigns.forEach(selectEl => {
+    const currVal = selectEl.value;
+    selectEl.innerHTML = '<option value="">Assign To...</option>';
+    members.forEach((member) => {
+      const opt = document.createElement('option');
+      opt.value = member;
+      opt.textContent = member;
+      selectEl.appendChild(opt);
+    });
+    if (currVal && members.includes(currVal)) {
+      selectEl.value = currVal;
+    }
   });
 
   if (currentValue && members.includes(currentValue)) {
@@ -526,6 +546,376 @@ dropZone.addEventListener('drop', (event) => {
   updatePickedFileLabel();
 });
 
+async function loadTodos() {
+  const { response, payload } = await requestJson('/api/todos');
+  if (payload && payload.success) {
+    renderTodos(payload.todos);
+  }
+}
+
+function renderTodos(todos) {
+  todoList.innerHTML = '';
+  if (todos.length === 0) {
+    todoList.innerHTML = '<p class="empty-state" style="margin:0; padding:20px 10px;">No upcoming objectives left! 🎉</p>';
+    return;
+  }
+  
+  // Group todos by date
+  const groupedTodos = {};
+  todos.forEach(todo => {
+    const dateKey = todo.date || 'No Date';
+    if (!groupedTodos[dateKey]) groupedTodos[dateKey] = [];
+    groupedTodos[dateKey].push(todo);
+  });
+
+  // Sort dates (No Date comes last if needed, simplest is string sort)
+  const sortedDates = Object.keys(groupedTodos).sort((a, b) => {
+    if (a === 'No Date') return 1;
+    if (b === 'No Date') return -1;
+    return new Date(a) - new Date(b);
+  });
+
+  sortedDates.forEach(date => {
+    // Add Date Header
+    const dateHeader = document.createElement('h3');
+    dateHeader.style.margin = '24px 0 12px 0';
+    dateHeader.style.fontSize = '1.1em';
+    dateHeader.style.color = 'var(--text-secondary)';
+    dateHeader.style.cursor = 'pointer';
+    dateHeader.style.display = 'flex';
+    dateHeader.style.alignItems = 'center';
+    dateHeader.style.gap = '8px';
+    
+    let dateLabel = '';
+    if (date !== 'No Date') {
+      const parsedDate = new Date(date);
+      dateLabel = parsedDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    } else {
+      dateLabel = 'Unscheduled';
+    }
+    
+    // Up chevron SVG
+    const expandIcon = `<svg class="date-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+    
+    dateHeader.innerHTML = `${dateLabel} ${expandIcon}`;
+    todoList.appendChild(dateHeader);
+
+    const dateCardsContainer = document.createElement('div');
+    dateCardsContainer.className = 'date-cards-container';
+    dateCardsContainer.style.display = 'block'; // defaults to open
+
+    dateHeader.addEventListener('click', () => {
+      if (dateCardsContainer.style.display === 'none') {
+        dateCardsContainer.style.display = 'block';
+        dateHeader.querySelector('.date-toggle-icon').innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+      } else {
+        dateCardsContainer.style.display = 'none';
+        dateHeader.querySelector('.date-toggle-icon').innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+      }
+    });
+
+    // Render Cards for this date
+    groupedTodos[date].forEach((todo) => {
+      const card = document.createElement('div');
+      card.className = `todo-card ${todo.completed ? 'completed' : ''}`;
+      
+      // Checkbox mapping
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = todo.completed;
+      checkbox.addEventListener('change', async () => {
+        await requestJson(`/api/todos/${todo.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+        loadTodos();
+      });
+
+      const info = document.createElement('div');
+      info.className = 'todo-details';
+      
+      const title = document.createElement('div');
+      title.className = 'todo-text';
+      title.style.display = 'flex';
+      title.style.flexDirection = 'column';
+      title.style.gap = '8px';
+
+      const mainTextRow = document.createElement('div');
+      mainTextRow.style.display = 'flex';
+      mainTextRow.style.alignItems = 'center';
+      mainTextRow.style.gap = '8px';
+
+      const mainText = document.createElement('span');
+      mainText.textContent = todo.task;
+      mainText.style.fontWeight = 'bold';
+      mainText.style.fontSize = '1.05em';
+      
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.style.background = 'transparent';
+      toggleBtn.style.border = 'none';
+      toggleBtn.style.color = 'var(--text-secondary)';
+      toggleBtn.style.cursor = 'pointer';
+      toggleBtn.style.padding = '0';
+      toggleBtn.style.display = 'flex';
+      toggleBtn.style.alignItems = 'center';
+      // Down chevron SVG as default (expanded)
+      toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+      
+      mainTextRow.appendChild(mainText);
+      
+      if (todo.points && todo.points.length > 0) {
+        mainTextRow.appendChild(toggleBtn);
+        // Make the whole row clickable for toggling
+        mainTextRow.style.cursor = 'pointer';
+      }
+      title.appendChild(mainTextRow);
+
+      // Icon SVG for person
+      const personSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+
+      // Render points if they exist
+      if (todo.points && todo.points.length > 0) {
+        const pointsList = document.createElement('div');
+        pointsList.style.display = 'flex';
+        pointsList.style.flexDirection = 'column';
+        pointsList.style.gap = '6px';
+        pointsList.style.marginLeft = '8px';
+        pointsList.style.fontSize = '0.9em';
+        
+        mainTextRow.addEventListener('click', () => {
+          if (pointsList.style.display === 'none') {
+            pointsList.style.display = 'flex';
+            toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+          } else {
+            pointsList.style.display = 'none';
+            toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>'; // Right chevron
+          }
+        });
+
+        todo.points.forEach(point => {
+          const pRow = document.createElement('div');
+          pRow.style.display = 'flex';
+          pRow.style.alignItems = 'center';
+          pRow.style.gap = '8px';
+          pRow.style.opacity = point.completed ? '0.5' : '1';
+
+          const pCheck = document.createElement('input');
+          pCheck.type = 'checkbox';
+          pCheck.style.width = '14px';
+          pCheck.style.height = '14px';
+          pCheck.checked = point.completed || false;
+          pCheck.addEventListener('change', async () => {
+            await requestJson(`/api/todos/${todo.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pointId: point.id })
+            });
+            loadTodos();
+          });
+
+          const pLabel = document.createElement('span');
+          pLabel.style.flex = "1";
+          pLabel.textContent = point.text;
+          if (point.completed) pLabel.style.textDecoration = 'line-through';
+          
+          const timePill = document.createElement('span');
+          if (point.startTime || point.endTime) {
+            timePill.style.fontSize = '0.85em';
+            timePill.style.color = 'var(--text-secondary)';
+            timePill.style.background = 'rgba(255,255,255,0.05)';
+            timePill.style.padding = '2px 6px';
+            timePill.style.borderRadius = '4px';
+            timePill.style.display = 'flex';
+            timePill.style.alignItems = 'center';
+            timePill.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${point.startTime || '?'} - ${point.endTime || '?'}`;
+          }
+
+          const pAssign = document.createElement('span');
+          pAssign.style.fontSize = '0.85em';
+          pAssign.style.color = 'var(--text-secondary)';
+          pAssign.style.background = 'rgba(255,255,255,0.05)';
+          pAssign.style.padding = '2px 6px';
+          pAssign.style.borderRadius = '4px';
+          pAssign.style.display = 'flex';
+          pAssign.style.alignItems = 'center';
+          pAssign.innerHTML = `${personSvg} ${point.assignedTo || 'Unassigned'}`;
+
+          pRow.appendChild(pCheck);
+          pRow.appendChild(pLabel);
+          if (point.startTime || point.endTime) pRow.appendChild(timePill);
+          pRow.appendChild(pAssign);
+          pointsList.appendChild(pRow);
+        });
+        title.appendChild(pointsList);
+      }
+      
+      info.appendChild(title);
+      
+      const delBtn = document.createElement('button');
+      delBtn.className = 'row-btn todo-delete';
+      delBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+      delBtn.addEventListener('click', async () => {
+        await requestJson(`/api/todos/${todo.id}`, { method: 'DELETE' });
+        loadTodos();
+      });
+
+      card.appendChild(checkbox);
+      card.appendChild(info);
+      card.appendChild(delBtn);
+      dateCardsContainer.appendChild(card);
+    });
+
+    todoList.appendChild(dateCardsContainer);
+  });
+}
+
+const toggleTodoFormBtn = document.getElementById('toggle-todo-form-btn');
+const toggleAllDatesBtn = document.getElementById('toggle-dates-btn');
+const cancelTodoBtn = document.getElementById('cancel-todo-btn');
+const addTodoPointBtn = document.getElementById('add-todo-point-btn');
+const todoPointsContainer = document.getElementById('todo-points-container');
+
+if (toggleAllDatesBtn) {
+  let isAllExpanded = true;
+  toggleAllDatesBtn.addEventListener('click', () => {
+    isAllExpanded = !isAllExpanded;
+    const containers = document.querySelectorAll('.date-cards-container');
+    const icons = document.querySelectorAll('.date-toggle-icon');
+    
+    containers.forEach(container => {
+      container.style.display = isAllExpanded ? 'block' : 'none';
+    });
+    icons.forEach(icon => {
+      icon.innerHTML = isAllExpanded 
+        ? '<polyline points="6 9 12 15 18 9"></polyline>' 
+        : '<polyline points="9 18 15 12 9 6"></polyline>';
+    });
+  });
+}
+
+if (toggleTodoFormBtn) {
+  toggleTodoFormBtn.addEventListener('click', () => {
+    todoForm.classList.toggle('hidden');
+  });
+}
+
+if (cancelTodoBtn) {
+  cancelTodoBtn.addEventListener('click', () => {
+    todoForm.reset();
+    todoForm.classList.add('hidden');
+    todoPointsContainer.innerHTML = '<div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;"><input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required /><input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><span style="color: var(--text-secondary); font-size: 0.85em;">to</span><input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><select class="todo-point-assign" style="width: 140px;" required><option value="">Assign To...</option></select></div>';
+    syncTeamMemberOptions();
+  });
+}
+
+if (addTodoPointBtn) {
+  addTodoPointBtn.addEventListener('click', () => {
+    const pointCount = todoPointsContainer.querySelectorAll('.todo-point-input').length + 1;
+    const div = document.createElement('div');
+    div.className = 'todo-point-input';
+    div.style.display = 'flex';
+    div.style.gap = '8px';
+    div.style.alignItems = 'center';
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'todo-point-val';
+    input.placeholder = `Point ${pointCount} (e.g. Connect API)`;
+    input.style.flex = '1';
+    input.required = true;
+
+    const startInput = document.createElement('input');
+    startInput.type = 'time';
+    startInput.className = 'todo-point-start';
+    startInput.title = 'Start Time';
+    startInput.style.padding = '6px';
+    startInput.style.borderRadius = '4px';
+    startInput.style.border = '1px solid var(--border-subtle)';
+    startInput.style.background = 'var(--bg-card)';
+    startInput.style.color = 'var(--text-primary)';
+    startInput.style.colorScheme = 'dark';
+
+    const toSpan = document.createElement('span');
+    toSpan.textContent = 'to';
+    toSpan.style.color = 'var(--text-secondary)';
+    toSpan.style.fontSize = '0.85em';
+
+    const endInput = document.createElement('input');
+    endInput.type = 'time';
+    endInput.className = 'todo-point-end';
+    endInput.title = 'End Time';
+    endInput.style.padding = '6px';
+    endInput.style.borderRadius = '4px';
+    endInput.style.border = '1px solid var(--border-subtle)';
+    endInput.style.background = 'var(--bg-card)';
+    endInput.style.color = 'var(--text-primary)';
+    endInput.style.colorScheme = 'dark';
+    
+    // Allow removing points
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'row-btn todo-delete';
+    removeBtn.style.padding = '8px';
+    removeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+    removeBtn.addEventListener('click', () => div.remove());
+
+    const select = document.createElement('select');
+    select.className = 'todo-point-assign';
+    select.style.width = '140px';
+    select.required = true;
+    const opt = document.createElement('option');
+    opt.value = "";
+    opt.disabled = true;
+    opt.selected = true;
+    opt.textContent = "Assign To...";
+    select.appendChild(opt);
+
+    div.appendChild(input);
+    div.appendChild(startInput);
+    div.appendChild(toSpan);
+    div.appendChild(endInput);
+    div.appendChild(select);
+    div.appendChild(removeBtn);
+    todoPointsContainer.appendChild(div);
+    syncTeamMemberOptions();
+  });
+}
+
+todoForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const dateInput = document.getElementById('todo-date');
+  const date = dateInput ? dateInput.value : '';
+  const task = document.getElementById('todo-task').value;
+
+  const pointsRows = Array.from(todoPointsContainer.querySelectorAll('.todo-point-input'));
+  const points = pointsRows.map(row => {
+    const valInput = row.querySelector('.todo-point-val');
+    const startInput = row.querySelector('.todo-point-start');
+    const endInput = row.querySelector('.todo-point-end');
+    const assignSelect = row.querySelector('.todo-point-assign');
+    return {
+      text: valInput ? valInput.value.trim() : '',
+      startTime: startInput ? startInput.value : '',
+      endTime: endInput ? endInput.value : '',
+      assignedTo: assignSelect ? assignSelect.value : ''
+    };
+  }).filter(p => p.text.length > 0);
+  
+  if (!task) return;
+
+  const { response, payload } = await requestJson('/api/todos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task, date, points })
+  });
+
+  if (response.ok && payload.success) {
+    todoForm.reset();
+    todoForm.classList.add('hidden');
+    todoPointsContainer.innerHTML = '<div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;"><input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required /><input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><span style="color: var(--text-secondary); font-size: 0.85em;">to</span><input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><select class="todo-point-assign" style="width: 140px;" required><option value="">Assign To...</option></select></div>';
+    syncTeamMemberOptions(); // Re-populate for the new default row
+    loadTodos();
+  }
+});
+
 function initializeApp() {
   const token = getToken();
   if (token) {
@@ -535,6 +925,7 @@ function initializeApp() {
     loadTeamMembers();
     loadFolders();
     loadResources();
+    loadTodos();
   } else {
     showLogin();
   }

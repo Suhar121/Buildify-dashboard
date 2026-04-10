@@ -123,6 +123,12 @@ body {
   padding: 32px;
 }
 
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 .panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
@@ -554,6 +560,55 @@ button:active {
 .card-actions-overlay .row-btn-delete:hover {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.todo-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-surface-hover);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.todo-card.completed {
+  opacity: 0.6;
+}
+.todo-card.completed .todo-text {
+  text-decoration: line-through;
+  color: var(--text-secondary);
+}
+
+.todo-card input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--success);
+}
+.todo-details {
+  flex: 1;
+}
+.todo-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.todo-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.todo-delete {
+  background: transparent;
+  color: var(--danger);
+  padding: 4px;
+  box-shadow: none;
+}
+.todo-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
 }
 
 @media (max-width: 1024px) {
