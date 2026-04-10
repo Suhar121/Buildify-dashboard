@@ -3,6 +3,7 @@ const path = require('node:path');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'items.json');
+const FOLDERS_FILE = path.join(DATA_DIR, 'folders.json');
 
 function ensureStorage() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -11,6 +12,35 @@ function ensureStorage() {
 
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, '[]', 'utf-8');
+  }
+
+  if (!fs.existsSync(FOLDERS_FILE)) {
+    fs.writeFileSync(FOLDERS_FILE, '[]', 'utf-8');
+  }
+}
+
+function readFolders() {
+  ensureStorage();
+  const raw = fs.readFileSync(FOLDERS_FILE, 'utf-8');
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFolders(folders) {
+  ensureStorage();
+  fs.writeFileSync(FOLDERS_FILE, JSON.stringify(folders, null, 2), 'utf-8');
+}
+
+function addFolder(folder) {
+  if (!folder) return;
+  const folders = readFolders();
+  if (!folders.includes(folder)) {
+    folders.push(folder);
+    writeFolders(folders);
   }
 }
 
@@ -35,6 +65,7 @@ function addItem(item) {
   const items = readItems();
   items.unshift(item);
   writeItems(items);
+  if (item.folder) addFolder(item.folder);
   return item;
 }
 
@@ -104,7 +135,9 @@ function getItems(filters = {}) {
 
 function getFolders() {
   const items = readItems();
-  const folders = new Set(items.map((item) => item.folder).filter(Boolean));
+  const dynamicFolders = items.map((item) => item.folder).filter(Boolean);
+  const staticFolders = readFolders();
+  const folders = new Set([...dynamicFolders, ...staticFolders]);
   return [...folders].sort((a, b) => a.localeCompare(b));
 }
 
@@ -113,6 +146,7 @@ function clearItems() {
 }
 
 module.exports = {
+  addFolder,
   addItem,
   clearItems,
   deleteItem,

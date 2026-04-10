@@ -9,7 +9,7 @@ const dropZone = document.getElementById('drop-zone');
 const filePickedLabel = document.getElementById('file-picked-label');
 const addedBySelect = document.getElementById('added-by');
 const searchInput = document.getElementById('search');
-const folderTabs = document.getElementById('folder-tabs');
+const folderGrid = document.getElementById('folder-grid');
 const resourcesList = document.getElementById('resources-list');
 const template = document.getElementById('resource-row-template');
 const folderOptions = document.getElementById('folder-options');
@@ -18,6 +18,7 @@ const formTitleText = document.getElementById('form-title-text');
 const editIdInput = document.getElementById('edit-id');
 const submitBtn = document.getElementById('submit-btn');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
+const addFolderBtn = document.getElementById('add-folder-btn');
 
 // Login Elements
 const loginOverlay = document.getElementById('login-overlay');
@@ -94,12 +95,29 @@ function setTypeUi() {
 }
 
 function updatePickedFileLabel() {
+  const titleInput = document.getElementById('title');
   if (fileInput.files && fileInput.files.length > 0) {
-    filePickedLabel.textContent = fileInput.files[0].name;
+    if (fileInput.files.length === 1) {
+      filePickedLabel.textContent = fileInput.files[0].name;
+      if (!titleInput.value) {
+        const nameParts = fileInput.files[0].name.split('.');
+        if (nameParts.length > 1) nameParts.pop();
+        titleInput.value = nameParts.join('.');
+      }
+      titleInput.disabled = false;
+      titleInput.placeholder = "e.g. Problem Statement PDF";
+    } else {
+      filePickedLabel.textContent = `${fileInput.files.length} files selected`;
+      titleInput.value = '';
+      titleInput.disabled = true;
+      titleInput.placeholder = "(Titles will automatically use filenames for bulk upload)";
+    }
     return;
   }
 
   filePickedLabel.textContent = 'No file selected';
+  titleInput.disabled = false;
+  titleInput.placeholder = "e.g. Problem Statement PDF";
 }
 
 async function requestJson(url, options = {}) {
@@ -205,23 +223,33 @@ async function deleteItemById(item) {
 }
 
 function updateFolderInputs(folders) {
-  // Rebuild category tabs
-  folderTabs.innerHTML = '';
+  // Rebuild category grid
+  folderGrid.innerHTML = '';
 
-  const allTab = document.createElement('button');
-  allTab.type = 'button';
-  allTab.className = `folder-tab ${activeFolderFilter === '' ? 'active' : ''}`;
+  const allTab = document.createElement('div');
+  allTab.className = `folder-card ${activeFolderFilter === '' ? 'active' : ''}`;
   allTab.dataset.folder = '';
-  allTab.textContent = 'All Folders';
-  folderTabs.appendChild(allTab);
+  allTab.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+    </svg>
+    <div class="folder-card-name">All Folders</div>
+    <div class="folder-card-meta">Dashboard</div>
+  `;
+  folderGrid.appendChild(allTab);
 
   folders.forEach((folder) => {
-    const tab = document.createElement('button');
-    tab.type = 'button';
-    tab.className = `folder-tab ${activeFolderFilter === folder ? 'active' : ''}`;
+    const tab = document.createElement('div');
+    tab.className = `folder-card ${activeFolderFilter === folder ? 'active' : ''}`;
     tab.dataset.folder = folder;
-    tab.textContent = folder;
-    folderTabs.appendChild(tab);
+    tab.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+      </svg>
+      <div class="folder-card-name">${folder}</div>
+      <div class="folder-card-meta">Folder</div>
+    `;
+    folderGrid.appendChild(tab);
   });
 
   // Rebuild the <datalist> for the folder input
@@ -231,6 +259,22 @@ function updateFolderInputs(folders) {
     dataOption.value = folder;
     folderOptions.appendChild(dataOption);
   });
+}
+
+function getIconForFile(item) {
+  if (item.type === 'link') {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>`;
+  }
+  if (!item.mimeType) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
+  }
+  if (item.mimeType.startsWith('image/')) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>`;
+  }
+  if (item.mimeType.includes('pdf') || item.mimeType.includes('text') || item.mimeType.includes('document')) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`;
+  }
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>`;
 }
 
 function renderResources(items) {
@@ -247,20 +291,19 @@ function renderResources(items) {
   items.forEach((item) => {
     const row = template.content.firstElementChild.cloneNode(true);
     row.querySelector('.col-title').textContent = item.title;
-    row.querySelector('.col-description').textContent = item.description;
-    row.querySelector('.col-type').textContent = item.type;
-    row.querySelector('.col-folder').textContent = item.folder;
-    row.querySelector('.col-added-by').textContent = item.addedBy || 'Not set';
+    
+    // Inject correct icon based on MIME type / link
+    row.querySelector('.file-icon-container').innerHTML = getIconForFile(item);
 
     const meta = item.type === 'file'
-      ? `${item.originalName} • ${humanFileSize(item.size)}`
-      : item.url;
+      ? `${humanFileSize(item.size)}`
+      : 'Link';
 
     row.querySelector('.resource-meta').textContent = meta;
 
-    const link = row.querySelector('.resource-link');
-    link.href = item.type === 'file' ? item.fileUrl : item.url;
-    link.textContent = item.type === 'file' ? 'Open File' : 'Open Link';
+    row.querySelector('.row-btn-open').addEventListener('click', () => {
+      window.open(item.type === 'file' ? item.fileUrl : item.url, '_blank');
+    });
 
     row.querySelector('.row-btn-edit').addEventListener('click', () => {
       editItem(item);
@@ -315,31 +358,98 @@ async function loadResources() {
   }
 }
 
+addFolderBtn.addEventListener('click', async () => {
+  const folderName = prompt('Enter a new folder name:');
+  if (!folderName || !folderName.trim()) return;
+  
+  const { response, payload } = await requestJson('/api/folders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ folder: folderName.trim() })
+  });
+
+  if (response.ok && payload.success) {
+    activeFolderFilter = payload.folder;
+    document.getElementById('folder').value = payload.folder;
+    await Promise.all([loadFolders(), loadResources()]);
+    setMessage(`Folder "${payload.folder}" added! ✅`);
+  } else {
+    setMessage(payload.message || 'Could not create folder.', true);
+  }
+});
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const editingId = editIdInput.value;
-  setMessage(editingId ? 'Updating resource...' : 'Saving resource...');
 
   try {
-    const formData = new FormData(form);
-    
-    const url = editingId ? `/api/items/${editingId}` : '/api/items';
-    const method = editingId ? 'PUT' : 'POST';
+    const isFileBulkUpload = !editingId && typeEl.value === 'file' && fileInput.files && fileInput.files.length > 1;
 
-    const { response, payload } = await requestJson(url, {
-      method,
-      body: formData
-    });
+    if (isFileBulkUpload) {
+      setMessage(`Saving ${fileInput.files.length} resources...`);
+      let successCount = 0;
+      let failedCount = 0;
 
-    if (!response.ok || !payload.success) {
-      setMessage(payload.message || `Could not ${editingId ? 'update' : 'save'} resource.`, true);
-      return;
+      for (const file of fileInput.files) {
+        const formData = new FormData();
+        formData.append('type', 'file');
+        
+        let generatedTitle = file.name;
+        const nameParts = file.name.split('.');
+        if (nameParts.length > 1) {
+          nameParts.pop();
+          generatedTitle = nameParts.join('.');
+        }
+
+        formData.append('title', generatedTitle);
+        formData.append('description', document.getElementById('description').value);
+        formData.append('folder', document.getElementById('folder').value || '');
+        formData.append('addedBy', document.getElementById('added-by').value);
+        formData.append('file', file);
+
+        const { response, payload } = await requestJson('/api/items', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response && response.ok && payload && payload.success) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      }
+
+      if (failedCount > 0) {
+        setMessage(`Saved ${successCount} resources, failed ${failedCount}.`, true);
+      } else {
+        setMessage(`All ${successCount} resources added successfully ✅`);
+      }
+    } else {
+      setMessage(editingId ? 'Updating resource...' : 'Saving resource...');
+      
+      const formData = new FormData(form);
+      const url = editingId ? `/api/items/${editingId}` : '/api/items';
+      const method = editingId ? 'PUT' : 'POST';
+
+      const { response, payload } = await requestJson(url, {
+        method,
+        body: formData
+      });
+
+      if (!response.ok || !payload.success) {
+        setMessage(payload.message || `Could not ${editingId ? 'update' : 'save'} resource.`, true);
+        return;
+      }
+      
+      setMessage(`Resource ${editingId ? 'updated' : 'added'} successfully ✅`);
     }
 
     form.reset();
     editIdInput.value = '';
     typeEl.value = 'file';
     addedBySelect.value = '';
+    
+    // reset inputs UI
     setTypeUi();
     updatePickedFileLabel();
     
@@ -347,8 +457,6 @@ form.addEventListener('submit', async (event) => {
     formTitleText.textContent = 'Add Resource';
     submitBtn.textContent = 'Save Resource';
     cancelEditBtn.classList.add('hidden');
-
-    setMessage(`Resource ${editingId ? 'updated' : 'added'} successfully ✅`);
 
     await Promise.all([loadFolders(), loadResources()]);
   } catch (error) {
@@ -363,21 +471,21 @@ searchInput.addEventListener('input', () => {
   loadResources();
 });
 
-folderTabs.addEventListener('click', (e) => {
-  const tab = e.target.closest('.folder-tab');
+folderGrid.addEventListener('click', (e) => {
+  const tab = e.target.closest('.folder-card');
   if (tab) {
     activeFolderFilter = tab.dataset.folder || '';
-    document.querySelectorAll('.folder-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.folder-card').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     loadResources();
   }
 });
 
-dropZone.addEventListener('click', () => {
-  if (typeEl.value === 'file') {
-    fileInput.click();
-  }
-});
+// dropZone.addEventListener('click', () => {
+//   if (typeEl.value === 'file') {
+//     fileInput.click();
+//   }
+// });
 
 dropZone.addEventListener('keydown', (event) => {
   if ((event.key === 'Enter' || event.key === ' ') && typeEl.value === 'file') {

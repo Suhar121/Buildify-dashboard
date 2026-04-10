@@ -9,6 +9,7 @@ const morgan = require('morgan');
 const { uploadToDrive } = require('./drive');
 
 const {
+  addFolder,
   addItem,
   deleteItem,
   getFolders,
@@ -74,6 +75,15 @@ app.get('/api/items', requireAuth, (req, res) => {
 app.get('/api/folders', requireAuth, (_req, res) => {
   const folders = getFolders();
   res.status(200).json({ success: true, folders });
+});
+
+app.post('/api/folders', requireAuth, (req, res) => {
+  const folder = (req.body.folder || '').trim();
+  if (!folder) {
+    return res.status(400).json({ success: false, message: 'Folder name is required.' });
+  }
+  addFolder(folder);
+  res.status(201).json({ success: true, folder });
 });
 
 app.get('/api/team-members', requireAuth, (_req, res) => {

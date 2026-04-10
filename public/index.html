@@ -90,9 +90,9 @@
 
           <label id="file-field" class="type-field">
             Upload File
-            <input id="file" name="file" type="file" />
+            <input id="file" name="file" type="file" multiple />
             <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drag and drop file upload zone">
-              <p>Drag & drop file here, or click to browse</p>
+              <p>Drag & drop file(s) here, or click to browse</p>
               <small id="file-picked-label">No file selected</small>
             </div>
           </label>
@@ -107,51 +107,37 @@
 
       <section class="panel resources">
         <div class="toolbar">
-          <div id="folder-tabs" class="folder-tabs">
-            <button type="button" class="folder-tab active" data-folder="">All Folders</button>
+          <div id="folder-grid" class="folder-grid">
+            <!-- folder cards will be rendered here -->
           </div>
-          <input id="search" type="search" placeholder="Search title, description..." />
+          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button type="button" id="add-folder-btn" class="row-btn" style="white-space: nowrap; margin-right: 10px; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px 12px; cursor: pointer;">
+              + Add Folder
+            </button>
+            <input id="search" type="search" placeholder="Search title, description..." style="flex-grow: 1; margin: 0; max-width: none;" />
+          </div>
         </div>
 
-        <div class="table-wrap">
-          <table class="resource-table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Type</th>
-                <th>Folder</th>
-                <th>Added by</th>
-                <th>Resource</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="resources-list"></tbody>
-          </table>
-        </div>
+        <div id="resources-list" class="folder-grid"></div>
+        
         <p id="empty-state" class="empty-state hidden">No resources found. Add one from the form 👈</p>
       </section>
     </main>
 
     <template id="resource-row-template">
-      <tr>
-        <td class="col-title"></td>
-        <td class="col-description"></td>
-        <td><span class="tag col-type"></span></td>
-        <td><span class="folder-chip col-folder"></span></td>
-        <td class="col-added-by"></td>
-        <td>
-          <a class="resource-link" target="_blank" rel="noreferrer">Open</a>
-          <p class="resource-meta"></p>
-        </td>
-        <td>
-          <div class="row-actions">
-            <button type="button" class="row-btn row-btn-copy" aria-label="Copy Link">Copy</button>
-            <button type="button" class="row-btn row-btn-edit">Edit</button>
-            <button type="button" class="row-btn row-btn-delete">Delete</button>
-          </div>
-        </td>
-      </tr>
+      <div class="folder-card file-card">
+        <div class="file-icon-container">
+          <!-- Icon will be injected via JS -->
+        </div>
+        <div class="folder-card-name col-title"></div>
+        <div class="folder-card-meta resource-meta"></div>
+        <div class="card-actions-overlay">
+          <button type="button" class="row-btn row-btn-open" aria-label="Open">Open</button>
+          <button type="button" class="row-btn row-btn-copy" aria-label="Copy Link">Copy</button>
+          <button type="button" class="row-btn row-btn-edit">Edit</button>
+          <button type="button" class="row-btn row-btn-delete">Delete</button>
+        </div>
+      </div>
     </template>
 
     <script src="app.js"></script>
