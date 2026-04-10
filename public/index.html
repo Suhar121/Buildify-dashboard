@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BUILDIFY Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="login-overlay" class="login-overlay hidden">
+      <div class="login-box panel">
+        <h2>Login to BUILDIFY</h2>
+        <form id="login-form" class="form">
+          <input type="text" id="login-username" name="username" placeholder="Username" value="Buildify" readonly required />
+          <input type="password" id="login-password" name="password" placeholder="Password" required />
+          <button type="submit" style="margin-top: 10px;">Login</button>
+          <p id="login-message" class="message"></p>
+        </form>
+      </div>
+    </div>
+
+    <header class="header">
+      <div class="header-content">
+        <div>
+          <h1>BUILDIFY Dashboard</h1>
+          <p class="subtitle">Organize hackathon files, images, docs, and links in one beautiful workspace.</p>
+        </div>
+        <span class="badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          Hackathon Hub
+        </span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <h2 id="form-heading" style="display: flex; align-items: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color)">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
+          </svg>
+          <span id="form-title-text">Add Resource</span>
+        </h2>
+        <form id="resource-form" class="form">
+          <input type="hidden" id="edit-id" name="id" value="" />
+          <label>
+            Resource Type
+            <select id="type" name="type" required>
+              <option value="file">File (PDF/Image/Anything)</option>
+              <option value="link">Link (URL)</option>
+            </select>
+          </label>
+
+          <label>
+            Title
+            <input id="title" name="title" type="text" placeholder="e.g. Problem Statement PDF" required />
+          </label>
+
+          <label>
+            Description
+            <textarea
+              id="description"
+              name="description"
+              rows="3"
+              placeholder="What is this file/link for?"
+              required
+            ></textarea>
+          </label>
+
+          <label>
+            Folder
+            <input id="folder" name="folder" type="text" list="folder-options" placeholder="e.g. Rules, Posters" required />
+            <datalist id="folder-options"></datalist>
+          </label>
+
+          <label>
+            Added by
+            <select id="added-by" name="addedBy" required>
+              <option value="">Select team member</option>
+            </select>
+          </label>
+
+          <label id="url-field" class="type-field hidden">
+            Link URL
+            <input id="url" name="url" type="url" placeholder="https://..." />
+          </label>
+
+          <label id="file-field" class="type-field">
+            Upload File
+            <input id="file" name="file" type="file" />
+            <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Drag and drop file upload zone">
+              <p>Drag & drop file here, or click to browse</p>
+              <small id="file-picked-label">No file selected</small>
+            </div>
+          </label>
+
+          <div class="form-actions" style="display: flex; gap: 8px;">
+            <button type="submit" id="submit-btn" style="flex: 1;">Save Resource</button>
+            <button type="button" id="cancel-edit-btn" class="hidden row-btn" style="flex: 0; padding: 12px 18px; border: 1px solid var(--border-subtle); background: var(--bg-base); color: var(--text-primary); border-radius: 10px;">Cancel</button>
+          </div>
+          <p id="form-message" class="message"></p>
+        </form>
+      </section>
+
+      <section class="panel resources">
+        <div class="toolbar">
+          <div id="folder-tabs" class="folder-tabs">
+            <button type="button" class="folder-tab active" data-folder="">All Folders</button>
+          </div>
+          <input id="search" type="search" placeholder="Search title, description..." />
+        </div>
+
+        <div class="table-wrap">
+          <table class="resource-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Folder</th>
+                <th>Added by</th>
+                <th>Resource</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="resources-list"></tbody>
+          </table>
+        </div>
+        <p id="empty-state" class="empty-state hidden">No resources found. Add one from the form 👈</p>
+      </section>
+    </main>
+
+    <template id="resource-row-template">
+      <tr>
+        <td class="col-title"></td>
+        <td class="col-description"></td>
+        <td><span class="tag col-type"></span></td>
+        <td><span class="folder-chip col-folder"></span></td>
+        <td class="col-added-by"></td>
+        <td>
+          <a class="resource-link" target="_blank" rel="noreferrer">Open</a>
+          <p class="resource-meta"></p>
+        </td>
+        <td>
+          <div class="row-actions">
+            <button type="button" class="row-btn row-btn-copy" aria-label="Copy Link">Copy</button>
+            <button type="button" class="row-btn row-btn-edit">Edit</button>
+            <button type="button" class="row-btn row-btn-delete">Delete</button>
+          </div>
+        </td>
+      </tr>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

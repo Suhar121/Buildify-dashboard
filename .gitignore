@@ -1,0 +1,6 @@
+﻿node_modules/
+.env
+data/items.json
+token.json
+credentials.json
+uploads/

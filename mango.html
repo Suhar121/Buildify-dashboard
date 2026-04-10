@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Buildify Kashmir - Venue Partnership Proposal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.5;
+            color: #1a1a1a;
+        }
+        
+        .page {
+            width: 210mm;
+            height: 297mm;
+            padding: 15mm 20mm;
+            margin: 0 auto;
+            background: white;
+            position: relative;
+            page-break-after: always;
+            overflow: hidden;
+        }
+        
+        .page:last-child {
+            page-break-after: auto;
+        }
+        
+        /* HEADER WITH LOGO SPACE */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid #c41e3a;
+        }
+        
+        .logo-space {
+            width: 60px;
+            height: 60px;
+            border: 2px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 8px;
+            text-align: center;
+            background: #fafafa;
+        }
+        
+        .header-content {
+            text-align: right;
+        }
+        
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 3px;
+        }
+        
+        .header-subtitle {
+            font-size: 10px;
+            color: #c41e3a;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .header-meta {
+            font-size: 9px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        /* SECTIONS */
+        h2 {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-top: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid #1a1a1a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        h2::before {
+            content: "";
+            width: 4px;
+            height: 14px;
+            background: #c41e3a;
+        }
+        
+        h3 {
+            font-size: 10px;
+            font-weight: 600;
+            color: #c41e3a;
+            margin-top: 10px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        p {
+            margin-bottom: 8px;
+            text-align: justify;
+            color: #444;
+            font-size: 9.5px;
+        }
+        
+        ul, ol {
+            margin-left: 16px;
+            margin-bottom: 8px;
+        }
+        
+        li {
+            margin-bottom: 4px;
+            color: #444;
+            font-size: 9.5px;
+        }
+        
+        /* HIGHLIGHT BOX */
+        .highlight {
+            background: #f8f8f8;
+            border-left: 4px solid #c41e3a;
+            padding: 10px 12px;
+            margin: 10px 0;
+            font-size: 9.5px;
+        }
+        
+        .highlight strong {
+            color: #c41e3a;
+        }
+        
+        /* TABLE */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+            font-size: 9px;
+        }
+        
+        th {
+            background: #1a1a1a;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #e5e5e5;
+            color: #444;
+        }
+        
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+        
+        /* TWO COLUMN LAYOUT */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        
+        .col-box {
+            background: #f8f8f8;
+            padding: 12px;
+            border-top: 3px solid #c41e3a;
+        }
+        
+        .col-box h4 {
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+        
+        .col-box ul {
+            margin-left: 0;
+            list-style: none;
+            margin-bottom: 0;
+        }
+        
+        .col-box li {
+            padding-left: 12px;
+            position: relative;
+            margin-bottom: 4px;
+            font-size: 9px;
+        }
+        
+        .col-box li::before {
+            content: "—";
+            position: absolute;
+            left: 0;
+            color: #c41e3a;
+            font-weight: 600;
+        }
+        
+        /* STATS */
+        .stats {
+            display: flex;
+            gap: 12px;
+            margin: 10px 0;
+        }
+        
+        .stat {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #c41e3a;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+        }
+        
+        /* FOOTER AREA */
+        .footer-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #1a1a1a;
+        }
+        
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .contact-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .contact-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            color: #999;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        
+        .contact-value {
+            font-size: 10px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        /* SIGNATURE */
+        .signature {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 25px;
+        }
+        
+        .sig-block {
+            border-top: 1px solid #1a1a1a;
+            padding-top: 8px;
+        }
+        
+        .sig-name {
+            font-weight: 600;
+            font-size: 10px;
+            margin-bottom: 2px;
+        }
+        
+        .sig-title {
+            font-size: 8px;
+            color: #666;
+        }
+        
+        /* QUOTE */
+        .quote {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8f8f8;
+            border-left: 3px solid #c41e3a;
+            font-style: italic;
+            color: #555;
+            font-size: 9.5px;
+        }
+        
+        /* PRINT */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .page {
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PAGE 1 -->
+    <div class="page">
+        <div class="header">
+            <div class="logo-space">
+                NIT SRINAGAR<br>LOGO
+            </div>
+            <div class="header-content">
+                <div class="header-title">Buildify Kashmir</div>
+                <div class="header-subtitle">Venue Partnership Proposal</div>
+                <div class="header-meta">May 2026 | Ref: BK-NIT-2026-001</div>
+            </div>
+        </div>
+
+        <h2>About Buildify</h2>
+        <p>Buildify is a curated, execution-focused hackathon designed for developers who ship real products, not just ideas. Unlike conventional hackathons, we prioritize building, shipping, and solving real problems through a rigorous application-based selection process.</p>
+        
+        <div class="two-col">
+            <div class="col-box">
+                <h4>Core Principles</h4>
+                <ul>
+                    <li>Application-based selection (not open entry)</li>
+                    <li>200-300 participants from 5,000-10,000 applicants</li>
+                    <li>24-48 hour intensive building phase</li>
+                    <li>Zero walk-ins, curated list only</li>
+                </ul>
+            </div>
+            <div class="col-box">
+                <h4>Professional Standards</h4>
+                <ul>
+                    <li>Laptop-based work environment</li>
+                    <li>No stage chaos or unmanaged footfall</li>
+                    <li>Dedicated on-ground management team</li>
+                    <li>Complete venue protection guaranteed</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>Selection Funnel</h2>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number">10K</div>
+                <div class="stat-label">Initial Reach</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">~2K</div>
+                <div class="stat-label">Applications</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">250</div>
+                <div class="stat-label">Final Selection</div>
+            </div>
+        </div>
+        
+        <table>
+            <tr>
+                <th style="width: 22%;">Stage</th>
+                <th style="width: 18%;">Volume</th>
+                <th>Process Description</th>
+            </tr>
+            <tr>
+                <td><strong>Initial Reach</strong></td>
+                <td>5,000 – 10,000</td>
+                <td>Developers express interest through marketing and community outreach across India</td>
+            </tr>
+            <tr>
+                <td><strong>Application Review</strong></td>
+                <td>Filtered Pool</td>
+                <td>Technical screening, portfolio assessment, and past project evaluation</td>
+            </tr>
+            <tr>
+                <td><strong>Final Selection</strong></td>
+                <td>200 – 300</td>
+                <td>Serious builders with proven execution ability and high-commitment profiles</td>
+            </tr>
+        </table>
+
+        <h2>Who Attends</h2>
+        <ul>
+            <li><strong>Academic Excellence:</strong> Top-tier students from IITs, NITs, and premier engineering colleges</li>
+            <li><strong>Independent Developers:</strong> Indie hackers and active open-source contributors</li>
+            <li><strong>Founders & Builders:</strong> Early-stage startup founders and product managers</li>
+            <li><strong>Execution Capability:</strong> Developers selected for demonstrated shipping ability</li>
+        </ul>
+
+        <h2>Why NIT Srinagar</h2>
+        <p>Hosting Buildify positions <strong>NIT Srinagar</strong> as a premier hub for technical innovation in the Jammu & Kashmir region.</p>
+        
+        <div class="two-col">
+            <div class="col-box">
+                <h4>Immediate Benefits</h4>
+                <ul>
+                    <li>Direct access to 200-300 high-skill developers</li>
+                    <li>Talent pipeline for internships and hiring</li>
+                    <li>Premium, high-intent footfall only</li>
+                </ul>
+            </div>
+            <div class="col-box">
+                <h4>Strategic Value</h4>
+                <ul>
+                    <li>National tech ecosystem association</li>
+                    <li>Industry partnership foundation</li>
+                    <li>Regional innovation leadership</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="highlight">
+            <strong>Event Format:</strong> Kickoff → Build Phase (majority) → Mentorship Interactions → Final Demos & Judging. Professional, controlled environment throughout.
+        </div>
+    </div>
+
+    <!-- PAGE 2 -->
+    <div class="page">
+        <div class="header">
+            <div class="logo-space">
+                NIT SRINAGAR<br>LOGO
+            </div>
+            <div class="header-content">
+                <div class="header-title">Buildify Kashmir</div>
+                <div class="header-subtitle">Implementation & Logistics</div>
+                <div class="header-meta">NIT Srinagar | May 2026</div>
+            </div>
+        </div>
+
+        <h2>Infrastructure Requirements</h2>
+        
+        <h3>Mandatory</h3>
+        <ul>
+            <li>Venue space for 200-300 participants with work setup</li>
+            <li>Reliable high-speed WiFi (standard institutional bandwidth)</li>
+            <li>Continuous power access for laptop usage throughout event</li>
+            <li>Adequate seating and tables for development work</li>
+        </ul>
+
+        <h3>Optional (Preferred)</h3>
+        <ul>
+            <li>Breakout rooms for mentorship sessions and team discussions</li>
+            <li>Catering area for meals and refreshments</li>
+            <li>Presentation zone for final demos and judging</li>
+        </ul>
+
+        <div class="highlight">
+            <strong>Execution Assurance:</strong> Curated participants only. Dedicated management team. Code of conduct enforced. Complete venue protection and post-event cleanup guaranteed. <strong>NIT Srinagar campus remains secure, organized, and respected.</strong>
+        </div>
+
+        <h2>Next Steps</h2>
+        <ol>
+            <li><strong>Review Terms:</strong> Review and sign attached Buildify Venue Terms & Conditions document</li>
+            <li><strong>Confirm Partnership:</strong> NIT Srinagar formal email approval with designated point of contact for coordination</li>
+            <li><strong>Execute Event:</strong> Our team finalizes logistics and moves into immediate execution at NIT Srinagar</li>
+        </ol>
+
+        <p>We are prepared for immediate site assessment at NIT Srinagar and logistics alignment upon your approval.</p>
+
+        <div class="footer-section">
+            <h2 style="margin-top: 0;">Contact Information</h2>
+            
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <span class="contact-label">Email</span>
+                    <span class="contact-value">community@buildify-kashmir.tech</span>
+                </div>
+                <div class="contact-item">
+                    <span class="contact-label">Phone</span>
+                    <span class="contact-value">+91 9541282716</span>
+                </div>
+                <div class="contact-item">
+                    <span class="contact-label">Website</span>
+                    <span class="contact-value">buildify-kashmir.tech</span>
+                </div>
+                <div class="contact-item">
+                    <span class="contact-label">Valid Until</span>
+                    <span class="contact-value">May 10, 2026</span>
+                </div>
+            </div>
+
+            <div class="signature">
+                <div class="sig-block">
+                    <div class="sig-name">Buildify Organizing Team</div>
+                    <div class="sig-title">Organizing Lead</div>
+                </div>
+                <div class="sig-block">
+                    <div class="sig-name">NIT Srinagar Representative</div>
+                    <div class="sig-title">Director / Dean of Students</div>
+                </div>
+            </div>
+
+            <div class="quote">
+                "We're not looking for a venue. We're looking for a campus aligned with serious builders."
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
