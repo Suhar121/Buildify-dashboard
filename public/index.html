@@ -5,6 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BUILDIFY Dashboard</title>
     <link rel="stylesheet" href="styles.css" />
+    <link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+    <style>
+      .ts-control, .ts-wrapper.multi.has-items .ts-control {
+        background-color: var(--bg-card);
+        color: var(--text-primary);
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        min-height: 38px;
+        padding: 6px 8px;
+      }
+      .ts-control input {
+        color: var(--text-primary);
+      }
+      .ts-dropdown {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        border-radius: 6px;
+        margin-top: 4px;
+      }
+      .ts-dropdown .option[data-selectable].active {
+        background-color: var(--primary-color);
+        color: #fff;
+      }
+      .ts-control > .item {
+        background-color: var(--primary-color);
+        color: #fff;
+        border-radius: 4px;
+        padding: 2px 6px;
+      }
+    </style>
   </head>
   <body>
     <div id="login-overlay" class="login-overlay hidden">
@@ -168,6 +200,25 @@
         <p id="empty-state" class="empty-state hidden">No resources found. Add one from the form 👈</p>
       </section>
     </main>
+
+    <footer style="margin-top: 40px; padding: 24px; text-align: center; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 0.9em;">
+      <div style="display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <div style="margin-bottom: 4px;">
+          <a href="https://buildify-kashmir.tech/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 500;">buildify-kashmir.tech</a>
+        </div>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;">
+          <a href="mailto:community@buildify-kashmir.tech" style="color: var(--text-secondary); text-decoration: none;">community@buildify-kashmir.tech</a>
+          <span>•</span>
+          <a href="mailto:buildifykashmir@gmail.com" style="color: var(--text-secondary); text-decoration: none;">buildifykashmir@gmail.com</a>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 4px;">
+          <span>📞</span>
+          <a href="tel:+919541282716" style="color: var(--text-secondary); text-decoration: none; font-variant-numeric: tabular-nums;">+91 95412 82716</a>
+          <span>/</span>
+          <a href="tel:+916005231146" style="color: var(--text-secondary); text-decoration: none; font-variant-numeric: tabular-nums;">+91 60052 31146</a>
+        </div>
+      </div>
+    </footer>
 
     <template id="resource-row-template">
       <div class="folder-card file-card">

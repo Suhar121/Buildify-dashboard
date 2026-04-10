@@ -156,7 +156,14 @@ function syncTeamMemberOptions(members = teamMembers) {
   });
 
   allAssigns.forEach(selectEl => {
-    const currVals = Array.from(selectEl.selectedOptions).map(o => o.value);
+    let currVals = [];
+    if (selectEl.tomselect) {
+      currVals = selectEl.tomselect.getValue();
+      selectEl.tomselect.destroy();
+    } else {
+      currVals = Array.from(selectEl.selectedOptions).map(o => o.value);
+    }
+
     selectEl.innerHTML = '<option value="" disabled>Assign To...</option>';
     members.forEach((member) => {
       const opt = document.createElement('option');
@@ -169,6 +176,14 @@ function syncTeamMemberOptions(members = teamMembers) {
         o.selected = true;
       }
     });
+
+    if (window.TomSelect) {
+      new TomSelect(selectEl, {
+        plugins: ['remove_button'],
+        hidePlaceholder: true,
+        maxOptions: null
+      });
+    }
   });
 
   if (currentValue && members.includes(currentValue)) {
@@ -905,6 +920,7 @@ function editTodo(todo) {
         Array.from(s.options).forEach(o => {
           if (pres.includes(o.value)) o.selected = true;
         });
+        if (s.tomselect) s.tomselect.setValue(pres);
       } catch (e) {}
     }
   });
@@ -942,7 +958,7 @@ if (cancelTodoBtn) {
   cancelTodoBtn.addEventListener('click', () => {
     todoForm.reset();
     todoForm.classList.add('hidden');
-    todoPointsContainer.innerHTML = '<div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;"><input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required /><input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><span style="color: var(--text-secondary); font-size: 0.85em;">to</span><input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><select class="todo-point-assign" style="width: 140px;" required><option value="">Assign To...</option></select></div>';
+    todoPointsContainer.innerHTML = '<div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;"><input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required /><input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><span style="color: var(--text-secondary); font-size: 0.85em;">to</span><input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><select class="todo-point-assign" style="width: 140px; height: auto;" multiple required><option value="" disabled>Assign To...</option></select></div>';
     syncTeamMemberOptions();
   });
 }
@@ -1001,11 +1017,12 @@ if (addTodoPointBtn) {
     const select = document.createElement('select');
     select.className = 'todo-point-assign';
     select.style.width = '140px';
+    select.style.height = 'auto';
+    select.multiple = true;
     select.required = true;
     const opt = document.createElement('option');
     opt.value = "";
     opt.disabled = true;
-    opt.selected = true;
     opt.textContent = "Assign To...";
     select.appendChild(opt);
 
