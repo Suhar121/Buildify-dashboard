@@ -127,6 +127,7 @@
         <form id="todo-form" class="form hidden" style="margin-bottom: 20px; padding: 16px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-subtle);">
           <input type="date" id="todo-date" required style="width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); font-family: inherit; color-scheme: dark;" />
           <input type="text" id="todo-task" placeholder="Main objective title (e.g. Build Backend)" required />
+          <input type="hidden" id="edit-todo-id" value="" />
           
           <div id="todo-points-container" style="display: flex; flex-direction: column; gap: 8px; margin: 8px 0;">
             <div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;">

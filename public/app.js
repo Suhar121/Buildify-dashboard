@@ -659,6 +659,18 @@ function renderTodos(todos) {
       // Down chevron SVG as default (expanded)
       toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
       
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'row-btn';
+      editBtn.style.marginLeft = 'auto';
+      editBtn.style.padding = '4px 8px';
+      editBtn.style.fontSize = '0.85em';
+      editBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>Edit';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        editTodo(todo);
+      });
+
       mainTextRow.appendChild(mainText);
       
       if (todo.points && todo.points.length > 0) {
@@ -666,6 +678,7 @@ function renderTodos(todos) {
         // Make the whole row clickable for toggling
         mainTextRow.style.cursor = 'pointer';
       }
+      mainTextRow.appendChild(editBtn);
       title.appendChild(mainTextRow);
 
       // Icon SVG for person
@@ -772,6 +785,119 @@ const toggleAllDatesBtn = document.getElementById('toggle-dates-btn');
 const cancelTodoBtn = document.getElementById('cancel-todo-btn');
 const addTodoPointBtn = document.getElementById('add-todo-point-btn');
 const todoPointsContainer = document.getElementById('todo-points-container');
+const editTodoIdInput = document.getElementById('edit-todo-id');
+const todoSubmitBtn = document.getElementById('todo-submit-btn');
+
+function resetTodoForm() {
+  todoForm.reset();
+  editTodoIdInput.value = '';
+  todoSubmitBtn.textContent = 'Save Objective';
+  todoForm.classList.add('hidden');
+  todoPointsContainer.innerHTML = '<div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;"><input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required /><input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><span style="color: var(--text-secondary); font-size: 0.85em;">to</span><input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><select class="todo-point-assign" style="width: 140px;" required><option value="">Assign To...</option></select></div>';
+  syncTeamMemberOptions();
+}
+
+function editTodo(todo) {
+  editTodoIdInput.value = todo.id;
+  document.getElementById('todo-date').value = todo.date || '';
+  document.getElementById('todo-task').value = todo.task;
+  
+  todoPointsContainer.innerHTML = '';
+  if (todo.points && todo.points.length > 0) {
+    todo.points.forEach((p, idx) => {
+      const div = document.createElement('div');
+      div.className = 'todo-point-input';
+      div.style.display = 'flex';
+      div.style.gap = '8px';
+      div.style.alignItems = 'center';
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'todo-point-val';
+      input.value = p.text || '';
+      input.style.flex = '1';
+      input.required = true;
+
+      const startInput = document.createElement('input');
+      startInput.type = 'time';
+      startInput.className = 'todo-point-start';
+      startInput.title = 'Start Time';
+      startInput.value = p.startTime || '';
+      startInput.style.padding = '6px';
+      startInput.style.borderRadius = '4px';
+      startInput.style.border = '1px solid var(--border-subtle)';
+      startInput.style.background = 'var(--bg-card)';
+      startInput.style.color = 'var(--text-primary)';
+      startInput.style.colorScheme = 'dark';
+
+      const toSpan = document.createElement('span');
+      toSpan.textContent = 'to';
+      toSpan.style.color = 'var(--text-secondary)';
+      toSpan.style.fontSize = '0.85em';
+
+      const endInput = document.createElement('input');
+      endInput.type = 'time';
+      endInput.className = 'todo-point-end';
+      endInput.title = 'End Time';
+      endInput.value = p.endTime || '';
+      endInput.style.padding = '6px';
+      endInput.style.borderRadius = '4px';
+      endInput.style.border = '1px solid var(--border-subtle)';
+      endInput.style.background = 'var(--bg-card)';
+      endInput.style.color = 'var(--text-primary)';
+      endInput.style.colorScheme = 'dark';
+      
+      // Allow removing points (except first one optionally, but lets keep it simple)
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'row-btn todo-delete';
+      removeBtn.style.padding = '8px';
+      removeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+      removeBtn.addEventListener('click', () => div.remove());
+
+      const select = document.createElement('select');
+      select.className = 'todo-point-assign';
+      select.style.width = '140px';
+      select.required = true;
+      const opt = document.createElement('option');
+      opt.value = "";
+      opt.disabled = true;
+      opt.selected = true;
+      opt.textContent = "Assign To...";
+      select.appendChild(opt);
+
+      div.appendChild(input);
+      div.appendChild(startInput);
+      div.appendChild(toSpan);
+      div.appendChild(endInput);
+      div.appendChild(select);
+      // only add remove on >1 if you want, but this is fine
+      div.appendChild(removeBtn);
+      
+      todoPointsContainer.appendChild(div);
+      
+      // We will sync value after syncTeamMemberOptions runs
+      select.dataset.preselect = p.assignedTo || '';
+    });
+  } else {
+    // Empty points fallback
+    todoPointsContainer.innerHTML = '<div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;"><input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required /><input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><span style="color: var(--text-secondary); font-size: 0.85em;">to</span><input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><select class="todo-point-assign" style="width: 140px;" required><option value="">Assign To...</option></select></div>';
+  }
+  
+  syncTeamMemberOptions();
+  
+  // Set pre-selects
+  const selects = todoPointsContainer.querySelectorAll('.todo-point-assign');
+  selects.forEach(s => {
+    if (s.dataset.preselect) {
+      s.value = s.dataset.preselect;
+    }
+  });
+
+  todoSubmitBtn.textContent = 'Update Objective';
+  todoForm.classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 if (toggleAllDatesBtn) {
   let isAllExpanded = true;
@@ -882,8 +1008,9 @@ if (addTodoPointBtn) {
 todoForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const dateInput = document.getElementById('todo-date');
+  const taskInput = document.getElementById('todo-task');
   const date = dateInput ? dateInput.value : '';
-  const task = document.getElementById('todo-task').value;
+  const task = taskInput ? taskInput.value.trim() : '';
 
   const pointsRows = Array.from(todoPointsContainer.querySelectorAll('.todo-point-input'));
   const points = pointsRows.map(row => {
@@ -901,17 +1028,18 @@ todoForm.addEventListener('submit', async (e) => {
   
   if (!task) return;
 
-  const { response, payload } = await requestJson('/api/todos', {
-    method: 'POST',
+  const isEdit = !!editTodoIdInput.value;
+  const endpoint = isEdit ? `/api/todos/${editTodoIdInput.value}` : '/api/todos';
+  const method = isEdit ? 'PUT' : 'POST';
+
+  const { response, payload } = await requestJson(endpoint, {
+    method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ task, date, points })
+    body: JSON.stringify(isEdit ? { task, date, points, updateAll: true } : { task, date, points })
   });
 
   if (response.ok && payload.success) {
-    todoForm.reset();
-    todoForm.classList.add('hidden');
-    todoPointsContainer.innerHTML = '<div class="todo-point-input" style="display: flex; gap: 8px; align-items: center;"><input type="text" class="todo-point-val" placeholder="Point 1 (e.g. Setup Database)" style="flex: 1;" required /><input type="time" class="todo-point-start" title="Start Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><span style="color: var(--text-secondary); font-size: 0.85em;">to</span><input type="time" class="todo-point-end" title="End Time" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-primary); color-scheme: dark;" /><select class="todo-point-assign" style="width: 140px;" required><option value="">Assign To...</option></select></div>';
-    syncTeamMemberOptions(); // Re-populate for the new default row
+    resetTodoForm();
     loadTodos();
   }
 });

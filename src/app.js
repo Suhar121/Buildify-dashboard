@@ -128,9 +128,28 @@ app.post('/api/todos', requireAuth, (req, res) => {
 });
 
 app.put('/api/todos/:id', requireAuth, (req, res) => {
-  const { pointId } = req.body;
+  const { pointId, updateAll, task, date, points } = req.body;
   const updated = updateTodo(req.params.id, (t) => {
-    // If pointId is provided, we toggle specific point
+    if (updateAll) {
+      // Full object replacement (edit objective)
+      const formattedPoints = (points || []).map((p, idx) => {
+        // Keep completion status if it already exists, or match by index
+        const existingPoint = t.points ? t.points[idx] : null;
+        return {
+          id: existingPoint ? existingPoint.id : Math.random().toString(36).substr(2, 9),
+          text: p.text.trim(),
+          startTime: p.startTime || '',
+          endTime: p.endTime || '',
+          assignedTo: p.assignedTo || '',
+          completed: existingPoint ? existingPoint.completed : false
+        };
+      });
+      // Check if all points are completed to determine global completion
+      const allCompleted = formattedPoints.length > 0 && formattedPoints.every(p => p.completed);
+      return { ...t, task, date, points: formattedPoints, completed: allCompleted };
+    }
+
+    // Toggle specific point logic
     if (pointId && Array.isArray(t.points)) {
       const newPoints = t.points.map(p => p.id === pointId ? { ...p, completed: !p.completed } : p);
       const allCompleted = newPoints.length > 0 && newPoints.every(p => p.completed);
