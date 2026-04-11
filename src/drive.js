@@ -3,6 +3,8 @@ const { google } = require('googleapis');
 const path = require('path');
 const stream = require('stream');
 
+const DRIVE_RESUMABLE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,mimeType,size,webViewLink,webContentLink';
+
 // Use your personal OAuth JSON Key
 const CREDENTIALS_PATH = path.join(__dirname, '..', 'uploads', 'client_secret_313504864661-q5smsgskdobi1e07q7ie6lp8mq022m2u.apps.googleusercontent.com.json');
 const TOKEN_PATH = path.join(__dirname, '..', 'uploads', 'token.json');
@@ -99,6 +101,78 @@ async function uploadToDrive(originalName, mimeType, buffer) {
   return file.data.webViewLink; // The shareable link
 }
 
+async function getAccessToken() {
+  const tokenResult = await auth.getAccessToken();
+  const accessToken = typeof tokenResult === 'string' ? tokenResult : tokenResult?.token;
+
+  if (!accessToken) {
+    throw new Error('Google access token is unavailable. Run setup-auth.js again to refresh token.json.');
+  }
+
+  return accessToken;
+}
+
+async function createResumableUploadSession({ fileName, mimeType, size }) {
+  const folderId = await getUploadFolderId();
+  const accessToken = await getAccessToken();
+  const effectiveMimeType = (mimeType || 'application/octet-stream').trim() || 'application/octet-stream';
+  const effectiveName = (fileName || 'Untitled Upload').trim() || 'Untitled Upload';
+
+  const headers = {
+    Authorization: `Bearer ${accessToken}`,
+    'Content-Type': 'application/json; charset=UTF-8',
+    'X-Upload-Content-Type': effectiveMimeType
+  };
+
+  if (Number.isFinite(size) && size > 0) {
+    headers['X-Upload-Content-Length'] = String(size);
+  }
+
+  const response = await fetch(DRIVE_RESUMABLE_UPLOAD_URL, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      name: effectiveName,
+      parents: [folderId],
+      mimeType: effectiveMimeType
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to start resumable upload session: ${response.status} ${errorText}`);
+  }
+
+  const uploadUrl = response.headers.get('location');
+
+  if (!uploadUrl) {
+    throw new Error('Google Drive did not return a resumable upload URL.');
+  }
+
+  return { uploadUrl };
+}
+
+async function finalizeDriveUpload(fileId) {
+  await drive.permissions.create({
+    fileId,
+    requestBody: {
+      role: 'reader',
+      type: 'anyone',
+    },
+    supportsAllDrives: true,
+  });
+
+  const file = await drive.files.get({
+    fileId,
+    fields: 'id, name, mimeType, size, webViewLink, webContentLink',
+    supportsAllDrives: true,
+  });
+
+  return file.data;
+}
+
 module.exports = {
-  uploadToDrive
+  uploadToDrive,
+  createResumableUploadSession,
+  finalizeDriveUpload
 };

@@ -19,6 +19,9 @@ const editIdInput = document.getElementById('edit-id');
 const submitBtn = document.getElementById('submit-btn');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
 const addFolderBtn = document.getElementById('add-folder-btn');
+const uploadProgressContainer = document.getElementById('upload-progress-container');
+const uploadProgressBar = document.getElementById('upload-progress-bar');
+const uploadProgressText = document.getElementById('upload-progress-text');
 
 const todoForm = document.getElementById('todo-form');
 const todoList = document.getElementById('todo-list');
@@ -32,7 +35,15 @@ let teamMembers = [];
 let activeFolderFilter = '';
 
 function getToken() {
-  return localStorage.getItem('buildify_token');
+  return sessionStorage.getItem('buildify_token');
+}
+
+function clearLegacyTokenCache() {
+  try {
+    localStorage.removeItem('buildify_token');
+  } catch {
+    // ignore storage access failures
+  }
 }
 
 function showLogin() {
@@ -62,7 +73,8 @@ loginForm.addEventListener('submit', async (e) => {
     const data = await res.json();
     
     if (data.success) {
-      localStorage.setItem('buildify_token', data.token);
+      sessionStorage.setItem('buildify_token', data.token);
+      loginMessage.textContent = '';
       hideLogin();
       initializeApp();
     } else {
@@ -95,6 +107,10 @@ function setTypeUi() {
 
   urlInput.required = isLink;
   fileInput.required = !isLink;
+
+  if (isLink) {
+    resetUploadProgress();
+  }
 }
 
 function updatePickedFileLabel() {
@@ -123,6 +139,94 @@ function updatePickedFileLabel() {
   titleInput.placeholder = "e.g. Problem Statement PDF";
 }
 
+function setUploadProgress(progressPercent, text = '') {
+  const safePercent = Math.max(0, Math.min(100, Number(progressPercent) || 0));
+
+  uploadProgressContainer.classList.remove('hidden');
+  uploadProgressBar.style.width = `${safePercent.toFixed(1)}%`;
+  uploadProgressText.textContent = text || `Upload progress: ${safePercent.toFixed(0)}%`;
+}
+
+function resetUploadProgress() {
+  uploadProgressBar.style.width = '0%';
+  uploadProgressText.textContent = 'Upload progress: 0%';
+  uploadProgressContainer.classList.add('hidden');
+}
+
+async function createDirectUploadSession(file) {
+  const { response, payload } = await requestJson('/api/items/upload-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      size: file.size
+    })
+  });
+
+  if (!response || !response.ok || !payload?.success || !payload.uploadUrl) {
+    throw new Error(payload?.message || 'Could not create upload session.');
+  }
+
+  return payload.uploadUrl;
+}
+
+function uploadFileToDriveSession(uploadUrl, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+    if (file.size > 0) {
+      xhr.setRequestHeader('Content-Range', `bytes 0-${file.size - 1}/${file.size}`);
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && typeof onProgress === 'function') {
+        onProgress(event.loaded, event.total);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        try {
+          resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {});
+        } catch {
+          resolve({});
+        }
+      } else {
+        reject(new Error(`Google Drive upload failed (${xhr.status}).`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error during Google Drive upload.'));
+    xhr.send(file);
+  });
+}
+
+async function finalizeDirectUpload({ fileId, title, description, folder, addedBy, fileName, mimeType, size }) {
+  const { response, payload } = await requestJson('/api/items/direct-upload/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fileId,
+      title,
+      description,
+      folder,
+      addedBy,
+      fileName,
+      mimeType,
+      size
+    })
+  });
+
+  if (!response || !response.ok || !payload?.success) {
+    throw new Error(payload?.message || 'Failed to save uploaded file metadata.');
+  }
+
+  return payload.item;
+}
+
 async function requestJson(url, options = {}) {
   const token = getToken();
   const headers = { ...options.headers };
@@ -133,6 +237,7 @@ async function requestJson(url, options = {}) {
   const response = await fetch(url, { ...options, headers });
   
   if (response.status === 401) {
+    sessionStorage.removeItem('buildify_token');
     showLogin();
     return { response, payload: null };
   }
@@ -454,17 +559,26 @@ form.addEventListener('submit', async (event) => {
   const editingId = editIdInput.value;
 
   try {
-    const isFileBulkUpload = !editingId && typeEl.value === 'file' && fileInput.files && fileInput.files.length > 1;
+    const isDirectFileUpload = !editingId && typeEl.value === 'file' && fileInput.files && fileInput.files.length > 0;
 
-    if (isFileBulkUpload) {
-      setMessage(`Saving ${fileInput.files.length} resources...`);
+    if (isDirectFileUpload) {
+      const files = Array.from(fileInput.files);
+      const description = document.getElementById('description').value;
+      const folder = document.getElementById('folder').value || '';
+      const addedBy = document.getElementById('added-by').value;
+      const titleFromInput = document.getElementById('title').value.trim();
+      const totalBytes = files.reduce((sum, file) => sum + file.size, 0) || files.length;
+      let uploadedBytes = 0;
+
+      setMessage(`Uploading ${files.length} file${files.length > 1 ? 's' : ''} directly to Google Drive...`);
+      setUploadProgress(0, 'Preparing upload...');
+
       let successCount = 0;
       let failedCount = 0;
 
-      for (const file of fileInput.files) {
-        const formData = new FormData();
-        formData.append('type', 'file');
-        
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+
         let generatedTitle = file.name;
         const nameParts = file.name.split('.');
         if (nameParts.length > 1) {
@@ -472,30 +586,59 @@ form.addEventListener('submit', async (event) => {
           generatedTitle = nameParts.join('.');
         }
 
-        formData.append('title', generatedTitle);
-        formData.append('description', document.getElementById('description').value);
-        formData.append('folder', document.getElementById('folder').value || '');
-        formData.append('addedBy', document.getElementById('added-by').value);
-        formData.append('file', file);
+        const itemTitle = files.length === 1
+          ? (titleFromInput || generatedTitle)
+          : generatedTitle;
 
-        const { response, payload } = await requestJson('/api/items', {
-          method: 'POST',
-          body: formData
-        });
+        try {
+          const uploadUrl = await createDirectUploadSession(file);
+          const uploadMetadata = await uploadFileToDriveSession(uploadUrl, file, (loaded) => {
+            const percent = ((uploadedBytes + loaded) / (totalBytes || 1)) * 100;
+            setUploadProgress(percent, `Uploading ${index + 1}/${files.length}: ${file.name} (${Math.round(percent)}%)`);
+          });
 
-        if (response && response.ok && payload && payload.success) {
+          const fileId = uploadMetadata?.id;
+          if (!fileId) {
+            throw new Error('Google Drive upload finished but no file id was returned.');
+          }
+
+          await finalizeDirectUpload({
+            fileId,
+            title: itemTitle,
+            description,
+            folder,
+            addedBy,
+            fileName: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            size: file.size
+          });
+
           successCount++;
-        } else {
+        } catch (error) {
           failedCount++;
+          console.error(error);
+
+          if (files.length === 1) {
+            throw error;
+          }
         }
+
+        uploadedBytes += file.size;
+        const finishedPercent = (uploadedBytes / (totalBytes || 1)) * 100;
+        setUploadProgress(finishedPercent, `Uploaded ${index + 1}/${files.length}: ${file.name}`);
       }
 
       if (failedCount > 0) {
-        setMessage(`Saved ${successCount} resources, failed ${failedCount}.`, true);
+        setMessage(`Uploaded ${successCount} file(s), failed ${failedCount}.`, true);
       } else {
-        setMessage(`All ${successCount} resources added successfully ✅`);
+        setMessage(`All ${successCount} file(s) uploaded successfully ✅`);
       }
+
+      setTimeout(() => {
+        resetUploadProgress();
+      }, 1200);
     } else {
+      resetUploadProgress();
       setMessage(editingId ? 'Updating resource...' : 'Saving resource...');
       
       const formData = new FormData(form);
@@ -532,7 +675,8 @@ form.addEventListener('submit', async (event) => {
     await Promise.all([loadFolders(), loadResources()]);
   } catch (error) {
     console.error(error);
-    setMessage('Something went wrong while saving. Please retry.', true);
+    resetUploadProgress();
+    setMessage(error?.message || 'Something went wrong while saving. Please retry.', true);
   }
 });
 
@@ -1111,6 +1255,7 @@ todoForm.addEventListener('submit', async (e) => {
 });
 
 function initializeApp() {
+  clearLegacyTokenCache();
   const token = getToken();
   if (token) {
     hideLogin();
@@ -1122,6 +1267,7 @@ function initializeApp() {
     loadTodos();
   } else {
     showLogin();
+    loginForm.password.value = '';
   }
 }
 

@@ -6,7 +6,7 @@ const multer = require('multer');
 const cors = require('cors');
 const morgan = require('morgan');
 
-const { uploadToDrive } = require('./drive');
+const driveService = require('./drive');
 
 const {
   addFolder,
@@ -66,6 +66,14 @@ const requireAuth = (req, res, next) => {
   }
   return res.status(401).json({ success: false, message: 'Unauthorized' });
 };
+
+function toSafeFileSize(input) {
+  const value = Number(input);
+  if (!Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+  return Math.floor(value);
+}
 
 app.get('/api/items', requireAuth, (req, res) => {
   const items = getItems({
@@ -170,6 +178,94 @@ app.delete('/api/todos/:id', requireAuth, (req, res) => {
   res.status(200).json({ success: true });
 });
 
+app.post('/api/items/upload-session', requireAuth, async (req, res) => {
+  const fileName = (req.body.fileName || '').trim();
+  const mimeType = (req.body.mimeType || '').trim() || 'application/octet-stream';
+  const size = toSafeFileSize(req.body.size);
+
+  if (!fileName) {
+    return res.status(400).json({
+      success: false,
+      message: 'fileName is required.'
+    });
+  }
+
+  try {
+    const { uploadUrl } = await driveService.createResumableUploadSession({
+      fileName,
+      mimeType,
+      size
+    });
+
+    return res.status(200).json({
+      success: true,
+      uploadUrl
+    });
+  } catch (error) {
+    console.error('Drive upload session error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create Google Drive upload session.'
+    });
+  }
+});
+
+app.post('/api/items/direct-upload/complete', requireAuth, async (req, res) => {
+  const fileId = (req.body.fileId || '').trim();
+  const title = (req.body.title || '').trim();
+  const description = (req.body.description || '').trim();
+  const folder = (req.body.folder || 'General').trim() || 'General';
+  const addedBy = normalizeMemberName(req.body.addedBy);
+  const providedFileName = (req.body.fileName || '').trim();
+  const providedMimeType = (req.body.mimeType || '').trim();
+  const providedSize = toSafeFileSize(req.body.size);
+
+  if (!fileId || !title || !description) {
+    return res.status(400).json({
+      success: false,
+      message: 'fileId, title, and description are required.'
+    });
+  }
+
+  if (!addedBy) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please select a valid team member in Added by.'
+    });
+  }
+
+  try {
+    const driveFile = await driveService.finalizeDriveUpload(fileId);
+    const resolvedSize = providedSize || toSafeFileSize(driveFile.size);
+    const fileUrl = driveFile.webViewLink || driveFile.webContentLink || `https://drive.google.com/file/d/${fileId}/view`;
+    const resolvedFileName = providedFileName || driveFile.name || 'Uploaded file';
+
+    const fileItem = {
+      id: crypto.randomUUID(),
+      type: 'file',
+      title,
+      description,
+      folder,
+      addedBy,
+      fileName: resolvedFileName,
+      originalName: resolvedFileName,
+      mimeType: providedMimeType || driveFile.mimeType || 'application/octet-stream',
+      size: resolvedSize,
+      fileUrl,
+      createdAt: new Date().toISOString()
+    };
+
+    addItem(fileItem);
+    return res.status(201).json({ success: true, item: fileItem });
+  } catch (error) {
+    console.error('Drive upload finalize error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to finalize Google Drive upload.'
+    });
+  }
+});
+
 app.post('/api/items', requireAuth, upload.single('file'), async (req, res) => {
   const type = (req.body.type || '').trim().toLowerCase();
   const title = (req.body.title || '').trim();
@@ -230,7 +326,7 @@ app.post('/api/items', requireAuth, upload.single('file'), async (req, res) => {
   }
 
   try {
-    const driveLink = await uploadToDrive(req.file.originalname, req.file.mimetype, req.file.buffer);
+    const driveLink = await driveService.uploadToDrive(req.file.originalname, req.file.mimetype, req.file.buffer);
 
     const fileItem = {
       id: crypto.randomUUID(),
@@ -322,7 +418,7 @@ app.put('/api/items/:id', requireAuth, upload.single('file'), async (req, res) =
   let newFileProps = {};
   if (req.file) {
     try {
-      const driveLink = await uploadToDrive(req.file.originalname, req.file.mimetype, req.file.buffer);
+      const driveLink = await driveService.uploadToDrive(req.file.originalname, req.file.mimetype, req.file.buffer);
       newFileProps = {
         fileName: req.file.originalname,
         originalName: req.file.originalname,
