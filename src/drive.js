@@ -153,22 +153,24 @@ async function createResumableUploadSession({ fileName, mimeType, size }) {
 }
 
 async function finalizeDriveUpload(fileId) {
-  await drive.permissions.create({
-    fileId,
-    requestBody: {
-      role: 'reader',
-      type: 'anyone',
-    },
-    supportsAllDrives: true,
-  });
+  // Run permissions update and file metadata fetch concurrently for maximum speed
+  const [fileResponse] = await Promise.all([
+    drive.files.get({
+      fileId,
+      fields: 'id, name, mimeType, size, webViewLink, webContentLink',
+      supportsAllDrives: true,
+    }),
+    drive.permissions.create({
+      fileId,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone',
+      },
+      supportsAllDrives: true,
+    })
+  ]);
 
-  const file = await drive.files.get({
-    fileId,
-    fields: 'id, name, mimeType, size, webViewLink, webContentLink',
-    supportsAllDrives: true,
-  });
-
-  return file.data;
+  return fileResponse.data;
 }
 
 module.exports = {
