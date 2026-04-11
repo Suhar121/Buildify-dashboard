@@ -356,7 +356,21 @@ function renderResources(items) {
       ? `${humanFileSize(item.size)}`
       : 'Link';
 
-    row.querySelector('.resource-meta').textContent = meta;
+    const assignee = typeof item.addedBy === 'string' && item.addedBy.trim()
+      ? item.addedBy.trim()
+      : 'Unassigned';
+
+    const metaEl = row.querySelector('.resource-meta');
+    const primaryMeta = document.createElement('span');
+    primaryMeta.textContent = meta;
+
+    const assigneeMeta = document.createElement('span');
+    assigneeMeta.className = 'resource-assignee';
+    assigneeMeta.textContent = `Assignee: ${assignee}`;
+
+    metaEl.innerHTML = '';
+    metaEl.appendChild(primaryMeta);
+    metaEl.appendChild(assigneeMeta);
 
     row.querySelector('.row-btn-open').addEventListener('click', () => {
       window.open(item.type === 'file' ? item.fileUrl : item.url, '_blank');

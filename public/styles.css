@@ -398,6 +398,14 @@ button:active {
   margin: 4px 0 0;
   font-size: 0.8rem;
   color: #71717a;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.resource-assignee {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
 
 /* Actions */
