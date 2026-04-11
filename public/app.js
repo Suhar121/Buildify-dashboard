@@ -141,12 +141,27 @@ async function requestJson(url, options = {}) {
   return { response, payload };
 }
 
+function normalizeTomSelectValues(value) {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 function syncTeamMemberOptions(members = teamMembers) {
   const currentValue = addedBySelect.value;
   addedBySelect.innerHTML = '<option value="">Select team member</option>';
   
   // Also update all existing point assigns
-  const allAssigns = document.querySelectorAll('.todo-point-assign');
+  const allAssigns = document.querySelectorAll('select.todo-point-assign');
 
   members.forEach((member) => {
     const option = document.createElement('option');
@@ -156,12 +171,16 @@ function syncTeamMemberOptions(members = teamMembers) {
   });
 
   allAssigns.forEach(selectEl => {
+    if (!(selectEl instanceof HTMLSelectElement)) {
+      return;
+    }
+
     let currVals = [];
     if (selectEl.tomselect) {
-      currVals = selectEl.tomselect.getValue();
+      currVals = normalizeTomSelectValues(selectEl.tomselect.getValue());
       selectEl.tomselect.destroy();
     } else {
-      currVals = Array.from(selectEl.selectedOptions).map(o => o.value);
+      currVals = Array.from(selectEl.selectedOptions || []).map(o => o.value).filter(Boolean);
     }
 
     selectEl.innerHTML = '<option value="" disabled>Assign To...</option>';
@@ -181,7 +200,8 @@ function syncTeamMemberOptions(members = teamMembers) {
       new TomSelect(selectEl, {
         plugins: ['remove_button'],
         hidePlaceholder: true,
-        maxOptions: null
+        maxOptions: null,
+        closeAfterSelect: false
       });
     }
   });
