@@ -25,6 +25,8 @@ const { TEAM_MEMBERS, normalizeMemberName } = require('./teamMembers');
 
 const app = express();
 const uploadsDir = path.join(__dirname, '..', 'uploads');
+const resumableUploadSessions = new Map();
+const RESUMABLE_UPLOAD_SESSION_TTL_MS = 1000 * 60 * 60;
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -73,6 +75,54 @@ function toSafeFileSize(input) {
     return 0;
   }
   return Math.floor(value);
+}
+
+function getResumableUploadSession(sessionId) {
+  const entry = resumableUploadSessions.get(sessionId);
+  if (!entry) {
+    return null;
+  }
+
+  if ((Date.now() - entry.createdAt) > RESUMABLE_UPLOAD_SESSION_TTL_MS) {
+    resumableUploadSessions.delete(sessionId);
+    return null;
+  }
+
+  return entry;
+}
+
+function extractDriveFileIdFromLocation(locationHeader) {
+  if (!locationHeader || typeof locationHeader !== 'string') {
+    return '';
+  }
+
+  const fromPathMatch = /\/files\/([^/?#]+)/i.exec(locationHeader);
+  if (fromPathMatch && fromPathMatch[1]) {
+    try {
+      return decodeURIComponent(fromPathMatch[1]);
+    } catch {
+      return fromPathMatch[1];
+    }
+  }
+
+  return '';
+}
+
+function parseDriveUploadMetadata(responseText) {
+  if (!responseText || typeof responseText !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(responseText);
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 app.get('/api/items', requireAuth, (req, res) => {
@@ -197,9 +247,17 @@ app.post('/api/items/upload-session', requireAuth, async (req, res) => {
       size
     });
 
+    const sessionId = crypto.randomUUID();
+    resumableUploadSessions.set(sessionId, {
+      uploadUrl,
+      fileId: '',
+      createdAt: Date.now()
+    });
+
     return res.status(200).json({
       success: true,
-      uploadUrl
+      sessionId,
+      uploadUrl: `/api/items/upload-session/${sessionId}/chunk`
     });
   } catch (error) {
     console.error('Drive upload session error:', error);
@@ -210,20 +268,118 @@ app.post('/api/items/upload-session', requireAuth, async (req, res) => {
   }
 });
 
+app.put(
+  '/api/items/upload-session/:sessionId/chunk',
+  requireAuth,
+  express.raw({ type: '*/*', limit: '200mb' }),
+  async (req, res) => {
+    const sessionId = (req.params.sessionId || '').trim();
+    const session = getResumableUploadSession(sessionId);
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Upload session not found or expired.'
+      });
+    }
+
+    const contentType = (req.headers['content-type'] || '').trim() || 'application/octet-stream';
+    const contentRange = typeof req.headers['content-range'] === 'string'
+      ? req.headers['content-range']
+      : '';
+    const requestBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.alloc(0);
+
+    const upstreamHeaders = {
+      'Content-Type': contentType
+    };
+
+    if (contentRange) {
+      upstreamHeaders['Content-Range'] = contentRange;
+    }
+
+    try {
+      const driveResponse = await fetch(session.uploadUrl, {
+        method: 'PUT',
+        headers: upstreamHeaders,
+        body: requestBody
+      });
+
+      const responseText = await driveResponse.text();
+      const rangeHeader = driveResponse.headers.get('range');
+      const locationHeader = driveResponse.headers.get('location');
+      const upstreamContentType = driveResponse.headers.get('content-type');
+      const metadata = parseDriveUploadMetadata(responseText) || {};
+      const responseFileId = (metadata.id || '').trim() || extractDriveFileIdFromLocation(locationHeader);
+
+      if (rangeHeader) {
+        res.set('Range', rangeHeader);
+      }
+
+      if (locationHeader) {
+        res.set('Location', locationHeader);
+      }
+
+      if (upstreamContentType) {
+        res.set('Content-Type', upstreamContentType);
+      }
+
+      if (driveResponse.status === 200 || driveResponse.status === 201) {
+        session.fileId = responseFileId;
+        session.completedAt = Date.now();
+        resumableUploadSessions.set(sessionId, session);
+
+        const finalPayload = {
+          ...metadata
+        };
+
+        if (responseFileId && !finalPayload.id) {
+          finalPayload.id = responseFileId;
+        }
+
+        return res.status(driveResponse.status).json(finalPayload);
+      }
+
+      return res.status(driveResponse.status).send(responseText);
+    } catch (error) {
+      console.error('Drive chunk upload proxy error:', error);
+      return res.status(502).json({
+        success: false,
+        message: 'Failed to upload chunk to Google Drive.'
+      });
+    }
+  }
+);
+
 app.post('/api/items/direct-upload/complete', requireAuth, async (req, res) => {
   const fileId = (req.body.fileId || '').trim();
+  const sessionId = (req.body.sessionId || '').trim();
   const title = (req.body.title || '').trim();
-  const description = (req.body.description || '').trim();
+  const description = (req.body.description || '').trim() || 'Uploaded via Direct Upload';
   const folder = (req.body.folder || 'General').trim() || 'General';
   const addedBy = normalizeMemberName(req.body.addedBy);
   const providedFileName = (req.body.fileName || '').trim();
   const providedMimeType = (req.body.mimeType || '').trim();
   const providedSize = toSafeFileSize(req.body.size);
 
-  if (!fileId || !title || !description) {
+  let resolvedFileId = fileId;
+  if (!resolvedFileId && sessionId) {
+    const session = getResumableUploadSession(sessionId);
+    resolvedFileId = (session?.fileId || '').trim();
+  }
+
+  if (!resolvedFileId) {
     return res.status(400).json({
       success: false,
-      message: 'fileId, title, and description are required.'
+      message: 'Upload session or fileId is missing. Please retry the upload.'
+    });
+  }
+
+  if (!title) {
+    return res.status(400).json({
+      success: false,
+      message: 'Title is required to save the resource.'
     });
   }
 
@@ -235,9 +391,9 @@ app.post('/api/items/direct-upload/complete', requireAuth, async (req, res) => {
   }
 
   try {
-    const driveFile = await driveService.finalizeDriveUpload(fileId);
+    const driveFile = await driveService.finalizeDriveUpload(resolvedFileId);
     const resolvedSize = providedSize || toSafeFileSize(driveFile.size);
-    const fileUrl = driveFile.webViewLink || driveFile.webContentLink || `https://drive.google.com/file/d/${fileId}/view`;
+    const fileUrl = driveFile.webViewLink || driveFile.webContentLink || `https://drive.google.com/file/d/${resolvedFileId}/view`;
     const resolvedFileName = providedFileName || driveFile.name || 'Uploaded file';
 
     const fileItem = {
@@ -256,6 +412,11 @@ app.post('/api/items/direct-upload/complete', requireAuth, async (req, res) => {
     };
 
     addItem(fileItem);
+
+    if (sessionId) {
+      resumableUploadSessions.delete(sessionId);
+    }
+
     return res.status(201).json({ success: true, item: fileItem });
   } catch (error) {
     console.error('Drive upload finalize error:', error);

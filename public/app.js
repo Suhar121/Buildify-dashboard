@@ -168,73 +168,82 @@ async function createDirectUploadSession(file) {
     throw new Error(payload?.message || 'Could not create upload session.');
   }
 
-  return payload.uploadUrl;
+  return {
+    uploadUrl: payload.uploadUrl,
+    sessionId: payload.sessionId || ''
+  };
+}
+
+function extractDriveFileIdFromLocation(locationHeader = '') {
+  if (!locationHeader || typeof locationHeader !== 'string') {
+    return '';
+  }
+
+  const match = /\/files\/([^/?#]+)/i.exec(locationHeader);
+  if (!match || !match[1]) {
+    return '';
+  }
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
 }
 
 async function uploadFileToDriveSession(uploadUrl, file, onProgress) {
-  if (file.size === 0) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', uploadUrl, true);
-      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-      
-      xhr.onload = () => {
-        if (xhr.status === 200 || xhr.status === 201) {
-          try { resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {}); }
-          catch { resolve({}); }
-        } else {
-          reject(new Error(`Google Drive upload failed (${xhr.status}).`));
+  const token = getToken();
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
+
+    if (file.size > 0) {
+      xhr.setRequestHeader('Content-Range', `bytes 0-${file.size - 1}/${file.size}`);
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && typeof onProgress === 'function') {
+        onProgress(event.loaded, event.total);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        const locationHeader = xhr.getResponseHeader('Location') || xhr.getResponseHeader('location');
+        const locationFileId = extractDriveFileIdFromLocation(locationHeader);
+
+        try {
+          const parsed = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+          if (parsed && typeof parsed === 'object' && locationFileId && !parsed.id) {
+            parsed.id = locationFileId;
+          }
+          resolve(parsed || {});
         }
-      };
-      xhr.onerror = () => reject(new Error('Network error during dummy upload.'));
-      xhr.send(file);
-    });
-  }
-
-  // Slice massive files into 10MB chunks for rapid and reliable transfer
-  const CHUNK_SIZE = 10 * 1024 * 1024;
-  let uploadedBytes = 0;
-  
-  while (uploadedBytes < file.size) {
-    const chunkEnd = Math.min(uploadedBytes + CHUNK_SIZE, file.size);
-    const chunk = file.slice(uploadedBytes, chunkEnd);
-
-    const chunkMetadata = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', uploadUrl, true);
-      xhr.setRequestHeader('Content-Range', `bytes ${uploadedBytes}-${chunkEnd - 1}/${file.size}`);
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && typeof onProgress === 'function') {
-          onProgress(uploadedBytes + event.loaded, file.size);
+        catch {
+          resolve(locationFileId ? { id: locationFileId } : {});
         }
-      };
+      } else {
+        reject(new Error(`Google Drive upload failed (${xhr.status}).`));
+      }
+    };
 
-      xhr.onload = () => {
-        if (xhr.status === 308) {
-          resolve(null); // Chunk accepted, need to continue
-        } else if (xhr.status === 200 || xhr.status === 201) {
-          try { resolve(xhr.responseText ? JSON.parse(xhr.responseText) : {}); } 
-          catch { resolve({}); }
-        } else {
-          reject(new Error(`Google Drive chunk upload failed (${xhr.status}).`));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('Network error during chunk upload.'));
-      xhr.send(chunk);
-    });
-
-    if (chunkMetadata) return chunkMetadata; // The final chunk returns the Google Drive metadata 
-    uploadedBytes = chunkEnd;
-  }
+    xhr.onerror = () => reject(new Error('Network error during Google Drive upload.'));
+    xhr.send(file);
+  });
 }
 
-async function finalizeDirectUpload({ fileId, title, description, folder, addedBy, fileName, mimeType, size }) {
+async function finalizeDirectUpload({ sessionId, fileId, title, description, folder, addedBy, fileName, mimeType, size }) {
   const { response, payload } = await requestJson('/api/items/direct-upload/complete', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      sessionId,
       fileId,
       title,
       description,
@@ -617,7 +626,7 @@ form.addEventListener('submit', async (event) => {
           : generatedTitle;
 
         try {
-          const uploadUrl = await createDirectUploadSession(file);
+          const { uploadUrl, sessionId } = await createDirectUploadSession(file);
           const uploadMetadata = await uploadFileToDriveSession(uploadUrl, file, (loaded) => {
             loadedBytesPerFile[index] = loaded;
             const currentTotalLoaded = loadedBytesPerFile.reduce((a, b) => a + b, 0);
@@ -625,12 +634,10 @@ form.addEventListener('submit', async (event) => {
             setUploadProgress(percent, `Uploading ${files.length} file(s) - ${Math.round(percent)}%`);
           });
 
-          const fileId = uploadMetadata?.id;
-          if (!fileId) {
-            throw new Error('Google Drive upload finished but no file id was returned.');
-          }
+          const fileId = uploadMetadata?.id || '';
 
           await finalizeDirectUpload({
+            sessionId,
             fileId,
             title: itemTitle,
             description,
