@@ -71,10 +71,21 @@ const vaultForm = document.getElementById('vault-form');
 const vaultEntriesList = document.getElementById('vault-entries-list');
 
 let vaultEntries = [];
-try {
-  vaultEntries = JSON.parse((typeof window !== 'undefined' ? window.localStorage.getItem('buildify_vault_entries') : '[]') || '[]');
-} catch (err) {
-  vaultEntries = [];
+
+async function loadVaultEntries() {
+  try {
+    const res = await fetch('/api/vault', {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    if (!res.ok) throw new Error('Failed to load vault entries');
+    const data = await res.json();
+    vaultEntries = data.items || [];
+    renderVaultEntries();
+  } catch (err) {
+    console.error('Error loading vault:', err);
+  }
 }
 
 function renderVaultEntries() {
@@ -115,36 +126,50 @@ window.toggleSavedPassword = function(index) {
   }
 };
 
-window.deleteVaultEntry = function(index) {
+window.deleteVaultEntry = async function(index) {
   if (confirm('Are you sure you want to remove this vault entry?')) {
-    vaultEntries.splice(index, 1);
-    safeSetLocalStorage('buildify_vault_entries', JSON.stringify(vaultEntries));
-    renderVaultEntries();
+    const entry = vaultEntries[index];
+    if (entry && entry.id) {
+      try {
+        await fetch(`/api/vault/${entry.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        loadVaultEntries();
+      } catch (err) {
+        console.error('Delete error', err);
+      }
+    }
   }
 };
 
-function safeSetLocalStorage(key, value) {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(key, value);
-    }
-  } catch (e) {}
-}
-
 if (vaultForm) {
-  vaultForm.addEventListener('submit', (e) => {
+  vaultForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('vault-title').value;
     const link = document.getElementById('vault-link').value;
     const username = document.getElementById('vault-username').value;
     const password = document.getElementById('vault-password').value;
 
-    vaultEntries.unshift({ title, link, username, password }); // Add to top
-    safeSetLocalStorage('buildify_vault_entries', JSON.stringify(vaultEntries));
-    
-    vaultForm.reset();
-    renderVaultEntries();
+    try {
+      const res = await fetch('/api/vault', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ title, link, username, password })
+      });
+      if (res.ok) {
+        vaultForm.reset();
+        loadVaultEntries();
+      }
+    } catch (err) {
+      console.error('Error adding vault entry:', err);
+    }
   });
 }
 
-renderVaultEntries();
+loadVaultEntries();

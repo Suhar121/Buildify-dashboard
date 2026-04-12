@@ -19,7 +19,10 @@ const {
   addTodo,
   updateTodo,
   deleteTodo,
-  updateItem
+  updateItem,
+  getVaultEntries,
+  addVaultEntry,
+  deleteVaultEntry
 } = require('./storage');
 const { TEAM_MEMBERS, normalizeMemberName } = require('./teamMembers');
 
@@ -628,6 +631,27 @@ app.delete('/api/items/:id', requireAuth, (req, res) => {
   }
 
   return res.status(200).json({ success: true, item: removedItem });
+});
+
+app.get('/api/vault', requireAuth, (req, res) => {
+  res.json({ success: true, items: getVaultEntries() });
+});
+
+app.post('/api/vault', requireAuth, (req, res) => {
+  const { title, link, username, password } = req.body;
+  if (!title || !link) {
+    return res.status(400).json({ success: false, message: 'Title and link are required' });
+  }
+  const newEntry = addVaultEntry({ title, link, username, password });
+  res.json({ success: true, item: newEntry });
+});
+
+app.delete('/api/vault/:id', requireAuth, (req, res) => {
+  const removed = deleteVaultEntry(req.params.id);
+  if (!removed) {
+    return res.status(404).json({ success: false, message: 'Not found' });
+  }
+  res.json({ success: true });
 });
 
 app.get('/', (_req, res) => {

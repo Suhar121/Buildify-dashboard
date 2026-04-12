@@ -6,6 +6,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'items.json');
 const FOLDERS_FILE = path.join(DATA_DIR, 'folders.json');
 const TODOS_FILE = path.join(DATA_DIR, 'todos.json');
+const VAULT_FILE = path.join(DATA_DIR, 'vault.json');
 
 function ensureStorage() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -22,6 +23,10 @@ function ensureStorage() {
 
   if (!fs.existsSync(TODOS_FILE)) {
     fs.writeFileSync(TODOS_FILE, '[]', 'utf-8');
+  }
+
+  if (!fs.existsSync(VAULT_FILE)) {
+    fs.writeFileSync(VAULT_FILE, '[]', 'utf-8');
   }
 }
 
@@ -197,6 +202,43 @@ function clearItems() {
   writeItems([]);
 }
 
+function readVault() {
+  ensureStorage();
+  const raw = fs.readFileSync(VAULT_FILE, 'utf-8');
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeVault(entries) {
+  ensureStorage();
+  fs.writeFileSync(VAULT_FILE, JSON.stringify(entries, null, 2), 'utf-8');
+}
+
+function getVaultEntries() {
+  return readVault();
+}
+
+function addVaultEntry(entry) {
+  const entries = readVault();
+  const newEntry = { id: crypto.randomUUID(), ...entry };
+  entries.unshift(newEntry);
+  writeVault(entries);
+  return newEntry;
+}
+
+function deleteVaultEntry(id) {
+  const entries = readVault();
+  const index = entries.findIndex(e => e.id === id);
+  if (index === -1) return null;
+  const [removed] = entries.splice(index, 1);
+  writeVault(entries);
+  return removed;
+}
+
 module.exports = {
   addFolder,
   addItem,
@@ -209,5 +251,8 @@ module.exports = {
   addTodo,
   updateTodo,
   deleteTodo,
-  updateItem
+  updateItem,
+  getVaultEntries,
+  addVaultEntry,
+  deleteVaultEntry
 };
