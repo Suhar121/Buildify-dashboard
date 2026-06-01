@@ -262,11 +262,22 @@ app.post('/api/items/upload-session', requireAuth, async (req, res) => {
       sessionId,
       uploadUrl: `/api/items/upload-session/${sessionId}/chunk`
     });
-  } catch (error) {
-    console.error('Drive upload session error:', error);
+    } catch (error) {
+    console.error('Drive upload session error:', error.message);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to create Google Drive upload session.';
+    
+    if (error.message?.includes('expired') || error.message?.includes('invalid_grant')) {
+      errorMessage = 'Google Drive authentication expired. Please re-authenticate by running: node setup-auth.js';
+    } else if (error.message?.includes('token')) {
+      errorMessage = 'Google Drive token issue. Please re-run: node setup-auth.js';
+    }
+    
     return res.status(500).json({
       success: false,
-      message: 'Failed to create Google Drive upload session.'
+      message: errorMessage,
+      error: error.message
     });
   }
 });

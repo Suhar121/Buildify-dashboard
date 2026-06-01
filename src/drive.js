@@ -102,14 +102,34 @@ async function uploadToDrive(originalName, mimeType, buffer) {
 }
 
 async function getAccessToken() {
-  const tokenResult = await auth.getAccessToken();
-  const accessToken = typeof tokenResult === 'string' ? tokenResult : tokenResult?.token;
+  try {
+    // Force token refresh if it's expired
+    const credentials = await auth.getAccessToken();
+    const accessToken = typeof credentials === 'string' ? credentials : credentials?.token;
 
-  if (!accessToken) {
-    throw new Error('Google access token is unavailable. Run setup-auth.js again to refresh token.json.');
+    if (!accessToken) {
+      throw new Error('Google access token is unavailable. Run setup-auth.js again to refresh token.json.');
+    }
+
+    return accessToken;
+  } catch (err) {
+    // If token refresh fails, try to refresh the credentials
+    if (err.code === 'ENHANCE_YOUR_CHASTITY' || err.message?.includes('invalid_grant')) {
+      console.error('🔄 Token expired. Attempting to refresh...');
+      try {
+        await auth.refreshAccessToken();
+        const newCredentials = await auth.getAccessToken();
+        const newToken = typeof newCredentials === 'string' ? newCredentials : newCredentials?.token;
+        if (newToken) {
+          return newToken;
+        }
+      } catch (refreshErr) {
+        console.error('❌ Failed to refresh token:', refreshErr.message);
+      }
+      throw new Error('Google access token expired. Please run "node setup-auth.js" to re-authenticate.');
+    }
+    throw err;
   }
-
-  return accessToken;
 }
 
 async function createResumableUploadSession({ fileName, mimeType, size }) {
